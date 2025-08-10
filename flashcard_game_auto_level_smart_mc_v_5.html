@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hebrew ↔ English Flashcard Game (Auto‑Level + Smart MC)</title>
+  <style>
+    :root{
+      --bg:#f7f9fc; --panel:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --danger:#ef4444; --border:#e5e7eb; --ok:#10b981;
+    }
+    *{box-sizing:border-box}
+    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 26px; margin: 8px 0 12px; }
+    textarea { width: 100%; min-height: 220px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background:#fbfdff; }
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .col{flex:1 1 320px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+    select,input[type="number"],input[type="text"]{background:#fbfdff;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px}
+    .btn { padding: 10px 14px; border: 1px solid transparent; border-radius: 10px; background: var(--accent); color: white; cursor: pointer; font-weight:600 }
+    .btn.ghost{ background:transparent; color:#1f2937; border-color: var(--border); }
+    .btn.danger { background: var(--danger); }
+    .btn.ok { background: var(--ok); }
+    .chip{padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #e0e7ff;color:#3730a3;font-size:12px}
+
+    /* Fullscreen game */
+    .game-screen { display: none; position: fixed; inset: 0; background: var(--panel); z-index: 1000; box-sizing: border-box; }
+    .game-header{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel)}
+    .back-btn { background: transparent; border: 1px solid var(--border); padding:8px 12px; border-radius:10px; cursor: pointer; }
+    .scorebar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:#111827}
+    .game-body{height:calc(100% - 58px);display:flex;align-items:center;justify-content:center;padding:16px}
+    .bigcard{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;width:min(1000px,94vw);min-height:min(62vh,520px);border-radius:16px;background:linear-gradient(180deg,#f8fafc,#f1f5f9);border:1px solid var(--border);position:relative;overflow:hidden}
+    .prompt{font-size:clamp(26px,5vw,46px);font-weight:800;text-align:center}
+    .prompt[dir="rtl"]{font-family:"Segoe UI Historic","Noto Sans Hebrew",Arial,sans-serif}
+    .answer{font-size:clamp(18px,3vw,28px);color:var(--muted);text-align:center;min-height:1.6em}
+    #userAnswer{width:100%;max-width:560px;font-size:20px;padding:14px;border-radius:12px;border:1px solid var(--border);background:#fff}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+    /* Millionaire-style grid */
+    #mcBar{display:none; width:min(920px,90vw);}
+    #mcGrid{display:grid; grid-template-columns: 1fr 1fr; gap:14px; width:100%;}
+    .mc-option{padding:14px 16px; border:1px solid var(--border); border-radius:12px; background:#fff; font-weight:700; text-align:left; cursor:pointer}
+    .mc-option.correct{background:#ecfdf5; border-color:#a7f3d0}
+    .mc-option.wrong{background:#fef2f2; border-color:#fecaca}
+    .mc-option:disabled{opacity:.7; cursor:not-allowed}
+
+    /* Flash feedback */
+    .flash-green{animation:flashG .5s ease}
+    .flash-red{animation:flashR .5s ease}
+    @keyframes flashG{0%{box-shadow:0 0 0 100vmax rgba(16,185,129,.18) inset}100%{box-shadow:none}}
+    @keyframes flashR{0%{box-shadow:0 0 0 100vmax rgba(239,68,68,.18) inset}100%{box-shadow:none}}
+
+    /* +5 points burst */
+    .burst{position:absolute; top:12%; font-size:28px; font-weight:900; color:#065f46; opacity:0; transform:translateY(10px);}
+    .burst.show{animation:rise 900ms ease forwards}
+    @keyframes rise{0%{opacity:0; transform:translateY(10px)} 20%{opacity:1; transform:translateY(0)} 100%{opacity:0; transform:translateY(-30px)}}
+
+    /* Confetti */
+    .confetti-piece{position:absolute; width:8px; height:14px; opacity:0.9; top:-10px; animation:fall 900ms linear forwards}
+    @keyframes fall{to{transform:translateY(120% ) rotate(720deg); opacity:0}}
+
+    /* Next button */
+    #nextBtn{display:none}
+  </style>
+</head>
+<body>
+  <!-- SETUP -->
+  <div class="wrap" id="mainScreen">
+    <h1>Hebrew ↔ English Flashcard Game</h1>
+    <div class="row">
+      <div class="col">
+        <label>Word list
+          <textarea id="raw" placeholder="**משני** – secondary\n**לפרסם פוסט** – to publish a post\nשלום - hello"></textarea>
+        </label>
+      </div>
+      <div class="col" style="align-self:flex-start;display:flex;flex-direction:column;gap:10px">
+        <label>Mode
+          <select id="mode">
+            <option value="type">Type answer</option>
+            <option value="flash">Flashcards (no typing)</option>
+            <option value="mc4">Multiple choice (4 options)</option>
+          </select>
+        </label>
+        <label>Direction
+          <select id="direction">
+            <option value="he2en">Hebrew → English</option>
+            <option value="en2he">English → Hebrew</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </label>
+        <label>Level (auto‑detect)
+          <select id="level">
+            <option value="auto">Auto</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </label>
+        <div id="levelNote" class="chip">Level: —</div>
+        <label>Shuffle
+          <select id="shuffle">
+            <option value="1">On</option>
+            <option value="0">Off</option>
+          </select>
+        </label>
+        <button class="btn" id="startBtn">Start game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME (FULLSCREEN) -->
+  <div class="game-screen" id="gameScreen">
+    <div class="game-header">
+      <button class="back-btn" id="backBtn" aria-label="Back">← Back</button>
+      <div class="scorebar">
+        <span>Score: <strong id="score">0</strong>/<span id="total">0</span></span>
+        <span>Streak: <strong id="streak">0</strong></span>
+        <span>Remaining: <strong id="remaining">0</strong></span>
+        <span class="chip" id="dirChip">—</span>
+        <span class="chip" id="liveLevel">—</span>
+      </div>
+      <div style="visibility:hidden">spacer</div>
+    </div>
+    <div class="game-body">
+      <div class="bigcard">
+        <div class="prompt" id="prompt">Paste your list and click Start</div>
+        <div class="answer" id="answer"></div>
+        <input id="userAnswer" type="text" placeholder="Type your answer… Enter" style="display:none">
+        <div class="toolbar" id="flashBar" style="display:none">
+          <button class="btn ghost" id="revealBtn">Show answer (Space)</button>
+          <button class="btn" id="correctBtn" style="display:none">I was right (1)</button>
+          <button class="btn danger" id="wrongBtn" style="display:none">I missed (2)</button>
+          <button class="btn ghost" id="skipBtn">Skip</button>
+        </div>
+        <div class="toolbar" id="mcBar" style="display:none; gap:12px; flex-wrap:wrap; max-width:920px">
+          <div id="mcGrid">
+            <button class="mc-option" id="optA">A</button>
+            <button class="mc-option" id="optB">B</button>
+            <button class="mc-option" id="optC">C</button>
+            <button class="mc-option" id="optD">D</button>
+          </div>
+          <button class="btn ok" id="nextBtn">Ready for the next word?</button>
+        </div>
+        <div class="toolbar">
+          <span class="chip">Enter = check</span>
+          <span class="chip">Space = reveal</span>
+          <span class="chip">A/B/C/D or 1–4 = choose</span>
+          <span class="chip">1/2 = mark</span>
+          <span class="chip">Esc = back</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  const mainScreen = $('mainScreen');
+  const gameScreen = $('gameScreen');
+  const backBtn = $('backBtn');
+  const rawEl = $('raw');
+  const startBtn = $('startBtn');
+  const modeSel = $('mode');
+  const dirSel = $('direction');
+  const shuffleSel = $('shuffle');
+  const levelSel = $('level');
+  const levelNote = $('levelNote');
+  const promptEl = $('prompt');
+  const answerEl = $('answer');
+  const userAnswer = $('userAnswer');
+  const flashBar = $('flashBar');
+  const revealBtn = $('revealBtn');
+  const correctBtn = $('correctBtn');
+  const wrongBtn = $('wrongBtn');
+  const skipBtn = $('skipBtn');
+  const mcBar = $('mcBar');
+  const optA = $('optA');
+  const optB = $('optB');
+  const optC = $('optC');
+  const optD = $('optD');
+  const nextBtn = $('nextBtn');
+  const scoreEl = $('score');
+  const totalEl = $('total');
+  const remainingEl = $('remaining');
+  const streakEl = $('streak');
+  const dirChip = $('dirChip');
+  const liveLevel = $('liveLevel');
+  let audioCtx;
+
+  // --- Utils ---
+  function looksHebrew(s){ return /[\u0590-\u05FF]/.test(s||''); }
+  function stripStars(s){ if(!s) return ''; return s.replace(/\*\*/g,'').trim().replace(/^\*+\s*/, '').replace(/\s*\*+$/, '').trim(); }
+  function noNiqqud(s){ return (s||'').normalize('NFKD').replace(/[\u0591-\u05C7]/g,''); }
+  function similarity(a,b){
+    a = noNiqqud(a||'').toLowerCase(); b = noNiqqud(b||'').toLowerCase();
+    if(!a||!b) return 0;
+    let score = 0;
+    if(a[0]===b[0]) score += 0.3; // same first letter
+    const lenDiff = Math.abs(a.length-b.length); score += Math.max(0, 0.4 - 0.05*lenDiff);
+    const bigr = (t)=> new Set(Array.from({length:Math.max(0,t.length-1)}, (_,i)=>t.slice(i,i+2)));
+    const A = bigr(a), B = bigr(b);
+    let inter = 0; A.forEach(x=>{ if(B.has(x)) inter++; });
+    const j = A.size? inter / A.size : 0; score += 0.3*j;
+    return score; // 0..1
+  }
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+  function setDir(el, text){ el.setAttribute('dir', looksHebrew(text)?'rtl':'ltr'); }
+  function normalize(s){ return (s||'').toString().trim(); }
+
+  // --- Parsing ---
+  function parseRaw(text){
+    const lines = (text||'').split(/\r?\n/);
+    const sep = /\s*[-–—]\s*/; // hyphen / en-/em-dash
+    const out = [];
+    for(const line of lines){
+      if(!line.trim()) continue;
+      const parts = stripStars(line).split(sep);
+      if(parts.length < 2) continue;
+      const left = stripStars(parts.shift().trim());
+      const right = stripStars(parts.join(' - ').trim());
+      const heFirst = looksHebrew(left) || (!looksHebrew(right));
+      const he = heFirst ? left : right;
+      const enSide = heFirst ? right : left;
+      const enList = enSide.split(',').map(s=>stripStars(s)).filter(Boolean);
+      out.push({ he, en: enList.length? enList : [enSide] });
+    }
+    return out;
+  }
+
+  // --- Level detection ---
+  function detectLevel(deck){
+    if(!deck.length) return 'beginner';
+    const n = deck.length;
+    const multiHe = deck.filter(p=>/\s/.test(p.he)).length / n; // phrases
+    const avgHeLen = deck.reduce((a,p)=>a+noNiqqud(p.he).length,0)/n;
+    const infCount = deck.filter(p=>/^ל[\u0590-\u05FF]/.test(p.he)).length; // infinitives
+    const avgEnLen = deck.reduce((a,p)=>a+(p.en[0]||'').length,0)/n;
+    let score = 0;
+    score += multiHe*0.4; // more phrases → harder
+    score += Math.min(1, (avgHeLen-4)/6)*0.3; // longer words → harder
+    score += Math.min(1, infCount/n)*0.2; // verbs → a bit harder
+    score += Math.min(1, (avgEnLen-4)/8)*0.1;
+    if(score < 0.35) return 'beginner';
+    if(score < 0.65) return 'intermediate';
+    return 'advanced';
+  }
+
+  // --- Variant generators (offline, heuristic) ---
+  const hebrewLookalikeMap = { 'א':'ע', 'ע':'א', 'ה':'ח', 'ח':'כ', 'כ':'ח', 'ג':'ק', 'ת':'ט', 'ס':'ש', 'ש':'ס', 'ב':'ו', 'ו':'ב' };
+  function hebrewVariants(word){
+    let w = noNiqqud(word).trim();
+    const vars = new Set();
+    // add/remove ה prefix
+    if(!/^ה/.test(w)) vars.add('ה'+w); else vars.add(w.replace(/^ה/,''));
+    // swap one similar letter
+    for(let i=0;i<w.length;i++){
+      const ch = w[i];
+      if(hebrewLookalikeMap[ch]){
+        vars.add(w.slice(0,i)+hebrewLookalikeMap[ch]+w.slice(i+1));
+      }
+    }
+    // add common preposition prefixes
+    ['ב','ל','מ'].forEach(pref=> vars.add(pref+w));
+    return Array.from(vars).filter(x=>x!==w);
+  }
+  function englishVariants(phrase){
+    const p = phrase.trim();
+    const vars = new Set();
+    // add/remove infinitive marker "to"
+    if(/^to\s+/i.test(p)) vars.add(p.replace(/^to\s+/i,'')); else vars.add('to '+p);
+    // pluralize simple nouns
+    p.split(/\s+/).forEach(tok=>{
+      if(/^[a-z]{3,}$/i.test(tok)){
+        if(/y$/i.test(tok)) vars.add(p.replace(tok, tok.replace(/y$/i,'ies')));
+        else if(!/s$/i.test(tok)) vars.add(p.replace(tok, tok+'s'));
+      }
+    });
+    // verb endings
+    if(/^[a-z]{3,}$/i.test(p)){
+      vars.add(p+'ing'); vars.add(p+'ed');
+    }
+    return Array.from(vars).filter(x=>x.toLowerCase()!==p.toLowerCase());
+  }
+
+  // --- State ---
+  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner' };
+
+  function buildQueue(){
+    state.queue = state.deck.map((_,i)=>i);
+    if(shuffleSel.value==='1') shuffle(state.queue);
+    state.i=0; state.score=0; state.streak=0; state.revealed=false;
+    totalEl.textContent = state.queue.length;
+    remainingEl.textContent = state.queue.length;
+  }
+  function nextDirection(){ return dirSel.value==='mixed' ? (Math.random()>0.5?'he2en':'en2he') : dirSel.value; }
+
+  function hideAllUI(){
+    userAnswer.style.display='none';
+    flashBar.style.display='none';
+    mcBar.style.display='none';
+    revealBtn.style.display='inline-block';
+    correctBtn.style.display='none';
+    wrongBtn.style.display='none';
+    nextBtn.style.display='none';
+    [optA,optB,optC,optD].forEach((btn,i)=>{
+    btn.onclick = () => {
+      if(btn.disabled) return;
+      [optA,optB,optC,optD].forEach(b=>b.disabled=true);
+      const ok = i===state.mc.correctIndex;
+      const correctText = state.mc.choices[state.mc.correctIndex];
+      if(ok){ btn.classList.add('correct'); answerEl.textContent = '✓ ' + correctText; }
+      else { btn.classList.add('wrong'); answerEl.textContent = '✗ ' + correctText; }
+      endRound(ok);
+    };
+  });
+  }
+
+  function showCard(){
+    if(state.i >= state.queue.length){
+      promptEl.textContent = '🎉 Done!'; answerEl.textContent=''; hideAllUI(); return;
+    }
+    const idx = state.queue[state.i];
+    const pair = state.deck[idx];
+    state.dir = nextDirection();
+    const promptText = state.dir==='he2en' ? pair.he : (pair.en[0]||'');
+    const answerText = state.dir==='he2en' ? pair.en.join(' / ') : pair.he;
+
+    hideAllUI();
+    state.revealed = false;
+    promptEl.textContent = promptText; setDir(promptEl, promptText);
+    answerEl.textContent = '';
+    dirChip.textContent = state.dir==='he2en' ? 'Heb → Eng' : 'Eng → Heb';
+    liveLevel.textContent = 'Level: ' + state.level.charAt(0).toUpperCase()+state.level.slice(1);
+
+    if(state.mode==='type'){
+      userAnswer.value=''; userAnswer.style.display='block'; userAnswer.focus();
+      userAnswer.onkeydown = (e)=>{ if(e.key==='Enter'){ checkTyped(answerText); } };
+    } else if(state.mode==='flash'){
+      flashBar.style.display='flex';
+    } else if(state.mode==='mc4'){
+      buildMC(answerText, idx);
+    }
+  }
+
+  function reveal(answerText){
+    if(state.revealed) return;
+    state.revealed = true;
+    answerEl.textContent = answerText;
+    revealBtn.style.display='none';
+    correctBtn.style.display='inline-block';
+    wrongBtn.style.display='inline-block';
+  }
+
+  function mark(correct){
+    if(correct){ state.score++; state.streak++; }
+    else { state.streak=0; const idx = state.queue[state.i]; const againAt = Math.min(state.queue.length, state.i + 3 + Math.floor(Math.random()*3)); state.queue.splice(againAt,0,idx); }
+    scoreEl.textContent = state.score; streakEl.textContent = state.streak;
+    state.i++; remainingEl.textContent = Math.max(0, state.queue.length - state.i);
+    showCard();
+  }
+
+  function checkTyped(correct){
+    const guess = userAnswer.value.trim();
+    const normalizedCorrect = correct.toLowerCase();
+    const isCorrect = normalizedCorrect.split('/').map(s=>s.trim()).includes(guess.toLowerCase());
+    answerEl.textContent = (isCorrect?'✓ ':'✗ ') + correct.split('/')[0].trim();
+    mark(isCorrect);
+  }
+
+  // --- MC (smart, level‑aware) ---
+  function buildMC(answerText, currentIdx){
+    mcBar.style.display='flex';
+    const promptIsHeb = state.dir==='he2en';
+    const correct = answerText;
+
+    const pool = [];
+    for(let i=0;i<state.deck.length;i++){
+      if(i===currentIdx) continue;
+      const p = state.deck[i];
+      const candidate = promptIsHeb ? (Array.isArray(p.en)?p.en[0]:p.en) : p.he;
+      pool.push(candidate);
+    }
+
+    const gens = promptIsHeb ? englishVariants(correct) : hebrewVariants(correct);
+
+    const distractors = [];
+    const used = new Set([normalize(correct).toLowerCase()]);
+    function tryAdd(x){ const n=normalize(x).toLowerCase(); if(!n||used.has(n)) return false; distractors.push(x); used.add(n); return true; }
+
+    if(state.level==='beginner'){
+      shuffle(pool); for(const x of pool){ if(tryAdd(x) && distractors.length>=3) break; }
+    } else if(state.level==='intermediate'){
+      const ranked = pool.map(x=>({x, s: similarity(x, correct)})).sort((a,b)=>Math.abs(0.45-b.s)-Math.abs(0.45-a.s));
+      for(const r of ranked){ if(tryAdd(r.x) && distractors.length>=2) break; }
+      shuffle(gens); for(const g of gens){ if(tryAdd(g) && distractors.length>=3) break; }
+      shuffle(pool); for(const x of pool){ if(distractors.length>=3) break; tryAdd(x); }
+    } else {
+      const close = pool.map(x=>({x, s: similarity(x, correct)})).sort((a,b)=>b.s-a.s);
+      for(const r of close){ if(r.s<0.35) break; if(tryAdd(r.x) && distractors.length>=2) break; }
+      for(const g of gens){ if(tryAdd(g) && distractors.length>=3) break; }
+      for(const r of close){ if(distractors.length>=3) break; tryAdd(r.x); }
+    }
+
+    const choices = [correct, ...distractors.slice(0,3)];
+    while(choices.length<4){ const filler = pool[Math.floor(Math.random()*Math.max(1,pool.length))] || correct + ' '; if(!used.has(normalize(filler).toLowerCase())){ choices.push(filler); used.add(normalize(filler).toLowerCase()); } if(choices.length>=4) break; }
+    shuffle(choices);
+    state.mc.choices = choices;
+    state.mc.correctIndex = choices.indexOf(correct);
+
+    const labels=['A','B','C','D'];
+    [optA,optB,optC,optD].forEach((btn,i)=>{ btn.textContent = labels[i] + ': ' + choices[i]; btn.setAttribute('data-index', i); btn.classList.remove('correct','wrong'); btn.disabled=false; });
+  }
+
+  // --- feedback utils ---
+  function getCtx(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+  function beep(seq){ const ctx=getCtx(); let t=ctx.currentTime; seq.forEach(([f,ms])=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.frequency.value=f; o.type='sine'; o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+ms/1000); g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001, t+ms/1000); t+=ms/1000; }); }
+  function playCorrect(){ beep([[880,120],[1175,120],[1568,180]]); }
+  function playWrong(){ beep([[220,160],[196,160]]); }
+  function flash(ok){ const card=document.querySelector('.bigcard'); card.classList.remove('flash-green','flash-red'); void card.offsetWidth; card.classList.add(ok?'flash-green':'flash-red'); }
+  function showBurst(){ let el=document.createElement('div'); el.className='burst'; el.textContent='+5 points!'; document.querySelector('.bigcard').appendChild(el); requestAnimationFrame(()=>{ el.classList.add('show'); }); setTimeout(()=>el.remove(),1000); }
+  function confetti(){ const card=document.querySelector('.bigcard'); for(let i=0;i<24;i++){ const s=document.createElement('div'); s.className='confetti-piece'; s.style.left=Math.random()*100+'%'; s.style.background=`hsl(${Math.floor(Math.random()*360)},90%,60%)`; s.style.transform=`translateY(-10px) rotate(${Math.random()*360}deg)`; card.appendChild(s); setTimeout(()=>s.remove(),1000); } }
+
+  function endRound(ok){ if(ok){ playCorrect(); showBurst(); confetti(); flash(true); setTimeout(()=>{ mark(true); }, 650); } else { playWrong(); flash(false); const ci = state.mc.correctIndex; [optA,optB,optC,optD][ci].classList.add('correct'); nextBtn.style.display='inline-block'; nextBtn.onclick=()=>{ nextBtn.style.display='none'; mark(false); } }
+  }
+
+  // --- Events ---
+  startBtn.addEventListener('click', ()=>{
+    const deck = parseRaw(rawEl.value);
+    if(deck.length===0){ alert('Please paste lines like: מילה - word'); return; }
+    state.mode = modeSel.value;
+    const autoLevel = levelSel.value==='auto' ? detectLevel(deck) : levelSel.value;
+    state.level = autoLevel; levelNote.textContent = 'Level: ' + autoLevel; liveLevel.textContent = 'Level: ' + autoLevel;
+    state.deck = deck; buildQueue();
+    mainScreen.style.display='none'; gameScreen.style.display='block';
+    showCard();
+  });
+
+  backBtn.addEventListener('click', ()=>{
+    gameScreen.style.display='none'; mainScreen.style.display='block';
+  });
+
+  // Flashbar actions
+  revealBtn.addEventListener('click', ()=>{
+    const idx = state.queue[state.i];
+    const pair = state.deck[idx];
+    const answerText = state.dir==='he2en' ? pair.en.join(' / ') : pair.he;
+    reveal(answerText);
+  });
+  correctBtn.addEventListener('click', ()=> mark(true));
+  wrongBtn.addEventListener('click', ()=> mark(false));
+  skipBtn.addEventListener('click', ()=>{ state.i++; remainingEl.textContent = Math.max(0, state.queue.length - state.i); showCard(); });
+
+  // MC actions
+  [optA,optB,optC,optD].forEach((btn,i)=>{
+    btn.onclick = () => {
+      const ok = i===state.mc.correctIndex;
+      const correctText = state.mc.choices[state.mc.correctIndex];
+      answerEl.textContent = (ok?'✓ ':'✗ ') + correctText;
+      mark(ok);
+    };
+  });
+
+  // Keys
+  document.addEventListener('keydown', (e)=>{
+    if(gameScreen.style.display!=='block') return;
+    if(e.key==='Escape'){ backBtn.click(); }
+    if(state.mode==='flash'){
+      if(e.key===' '){ e.preventDefault(); revealBtn.click(); }
+      if(e.key==='1'){ e.preventDefault(); correctBtn.click(); }
+      if(e.key==='2'){ e.preventDefault(); wrongBtn.click(); }
+    }
+    if(state.mode==='mc4'){
+      const map = { 'a':0, 'b':1, 'c':2, 'd':3, '1':0, '2':1, '3':2, '4':3 };
+      const k = e.key.toLowerCase();
+      if(Object.prototype.hasOwnProperty.call(map,k)){
+        e.preventDefault();
+        [optA,optB,optC,optD][map[k]].click();
+      }
+    }
+    if(state.mode==='type' && e.key==='Enter'){ e.preventDefault(); /* handled on input */ }
+  });
+})();
+</script>
+</body>
+</html>
