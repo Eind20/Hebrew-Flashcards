@@ -91,6 +91,14 @@
     .switch-auth{font-size:13px;color:var(--muted)}
     .switch-auth button{background:none;border:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0}
     .error-text{color:var(--danger);min-height:18px;font-size:13px}
+    .difficulty-card{max-width:440px;width:min(94vw,440px);text-align:left;display:flex;flex-direction:column;gap:16px}
+    .difficulty-options{display:flex;flex-direction:column;gap:12px;margin:4px 0 0}
+    .difficulty-option{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:#f8fafc;color:var(--text);font-weight:600;font-size:15px;cursor:pointer;transition:all .2s ease}
+    .difficulty-option:hover,.difficulty-option:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.12);outline:none}
+    .difficulty-option:active{transform:translateY(1px)}
+    .difficulty-label{font-size:16px;font-weight:700}
+    .difficulty-note{font-size:13px;font-weight:500;color:var(--muted)}
+    .difficulty-hint{font-size:13px;color:var(--muted);margin:0}
     .profile-words{margin-top:12px;}
     .profile-shell{display:flex;flex-direction:column;gap:12px}
     .profile-empty{font-size:14px;color:var(--muted);border:1px dashed var(--border);border-radius:12px;padding:24px;background:#f8fafc;text-align:center}
@@ -222,6 +230,30 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="difficultyModal" role="dialog" aria-modal="true" aria-labelledby="difficultyTitle" aria-describedby="difficultySubtitle">
+    <div class="modal-card difficulty-card">
+      <button class="modal-close" id="difficultyClose" aria-label="Close">×</button>
+      <h2 id="difficultyTitle">Choose your challenge</h2>
+      <p class="auth-meta" id="difficultySubtitle">This controls how convincing the wrong answers will feel.</p>
+      <div class="difficulty-options">
+        <button class="difficulty-option" data-difficulty="easy">
+          <span class="difficulty-label">Easy</span>
+          <span class="difficulty-note">Distant distractors that make the answer stand out.</span>
+        </button>
+        <button class="difficulty-option" data-difficulty="medium">
+          <span class="difficulty-label">Medium</span>
+          <span class="difficulty-note">Related but still distinguishable options.</span>
+        </button>
+        <button class="difficulty-option" data-difficulty="hard">
+          <span class="difficulty-label">Hard</span>
+          <span class="difficulty-note">Near-miss distractors for maximum challenge.</span>
+        </button>
+      </div>
+      <p class="difficulty-hint">(This setting shapes how obvious or sneaky the wrong answers feel—the harder the mode, the subtler the traps.)</p>
+      <button class="btn ghost" id="difficultyCancel" type="button">Never mind</button>
+    </div>
+  </div>
+
   <!-- SETUP -->
   <div class="wrap" id="mainScreen">
     <h1>Hebrew ↔ English Flashcard Game</h1>
@@ -276,6 +308,7 @@
         <span>Remaining: <strong id="remaining">0</strong></span>
         <span class="chip" id="dirChip">—</span>
         <span class="chip" id="liveLevel">—</span>
+        <span class="chip" id="difficultyChip">Difficulty: —</span>
       </div>
       <div style="visibility:hidden">spacer</div>
     </div>
@@ -362,6 +395,11 @@
   const authSwitchPrompt = $('authSwitchPrompt');
   const authClose = $('authClose');
   const profileBtn = $('profileBtn');
+  const difficultyModal = $('difficultyModal');
+  const difficultyClose = $('difficultyClose');
+  const difficultyCancel = $('difficultyCancel');
+  const difficultyChip = $('difficultyChip');
+  const difficultyOptions = Array.from(document.querySelectorAll('.difficulty-option'));
   const profileModal = $('profileModal');
   const profileClose = $('profileClose');
   const profileUsername = $('profileUsername');
@@ -577,6 +615,41 @@
     closeModal(authModal);
     authForm.reset();
     authError.textContent = '';
+  }
+
+  let difficultyResolver = null;
+
+  function showDifficultyPicker(){
+    if(!difficultyModal) return;
+    openModal(difficultyModal);
+    setTimeout(()=>{
+      if(difficultyOptions.length){
+        difficultyOptions[0].focus();
+      }
+    }, 30);
+  }
+
+  function settleDifficulty(choice){
+    if(!difficultyModal) return;
+    closeModal(difficultyModal);
+    const resolver = difficultyResolver;
+    difficultyResolver = null;
+    if(typeof resolver === 'function'){
+      resolver(choice ?? null);
+    }
+  }
+
+  function requestDifficulty(){
+    if(!difficultyModal) return Promise.resolve('hard');
+    if(typeof difficultyResolver === 'function'){
+      const resolver = difficultyResolver;
+      difficultyResolver = null;
+      resolver(null);
+    }
+    return new Promise(resolve=>{
+      difficultyResolver = resolve;
+      showDifficultyPicker();
+    });
   }
 
   function handleAuthSubmit(){
@@ -892,6 +965,20 @@
   authForm.addEventListener('submit', (e)=>{ e.preventDefault(); handleAuthSubmit(); });
   signOutBtn.addEventListener('click', ()=>{ setCurrentUser(null); authState.user = null; updateAuthUI(); closeProfileDateMenu(); closeModal(profileModal); });
 
+  if(difficultyClose){ difficultyClose.addEventListener('click', ()=> settleDifficulty(null)); }
+  if(difficultyCancel){ difficultyCancel.addEventListener('click', ()=> settleDifficulty(null)); }
+  if(difficultyModal){
+    difficultyModal.addEventListener('click', (e)=>{ if(e.target === difficultyModal){ settleDifficulty(null); } });
+  }
+  if(difficultyOptions.length){
+    difficultyOptions.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const value = btn.getAttribute('data-difficulty') || 'hard';
+        settleDifficulty(value);
+      });
+    });
+  }
+
   profileBtn.addEventListener('click', ()=>{ closeProfileDateMenu(); renderProfile(); openModal(profileModal); });
   profileClose.addEventListener('click', ()=>{ closeProfileDateMenu(); closeModal(profileModal); });
   profileModal.addEventListener('click', (e)=>{ if(e.target === profileModal){ closeProfileDateMenu(); closeModal(profileModal); } });
@@ -972,14 +1059,20 @@
   }
 
   if(profilePlayBtn){
-    profilePlayBtn.addEventListener('click', ()=>{
+    profilePlayBtn.addEventListener('click', async ()=>{
       const selectedWords = profileState.words.filter(word=>profileState.selected.has(word.key));
       if(!selectedWords.length) return;
       const deck = selectedWords.map(word=>({ he: word.he, en: Array.isArray(word.en) ? word.en.slice() : sanitizeEnList(word.en) }));
       rawEl.value = deck.map(word=>`${word.he} - ${word.en.join(', ')}`).join('\n');
       closeProfileDateMenu();
       closeModal(profileModal);
-      beginGame(deck);
+      let difficultyChoice = 'hard';
+      if(modeSel.value === 'mc4'){
+        difficultyChoice = await requestDifficulty();
+        if(!difficultyChoice) return;
+      }
+      state.difficulty = difficultyChoice || 'hard';
+      await beginGame(deck);
     });
   }
 
@@ -1002,6 +1095,21 @@
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
   function setDir(el, text){ el.setAttribute('dir', looksHebrew(text)?'rtl':'ltr'); }
   function normalize(s){ return (s||'').toString().trim(); }
+
+  function formatDifficultyLabel(value){
+    if(!value) return '—';
+    const lower = String(value).toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+
+  function updateDifficultyChip(){
+    if(!difficultyChip) return;
+    if(state.mode === 'mc4'){
+      difficultyChip.textContent = 'Difficulty: ' + formatDifficultyLabel(state.difficulty);
+    } else {
+      difficultyChip.textContent = 'Difficulty: —';
+    }
+  }
 
   function normalizePairForDeck(pair){
     if(!pair) return { he:'', en:[] };
@@ -1455,7 +1563,7 @@
   }
 
   // --- State ---
-  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner', seen:new Set(), currentIdx:null, currentPair:null };
+  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner', difficulty:'hard', seen:new Set(), currentIdx:null, currentPair:null };
 
   function buildQueue(){
     state.queue = state.deck.map((_,i)=>i);
@@ -1481,6 +1589,7 @@
     liveLevel.textContent = 'Level: ' + desiredLevel;
     await gatherRemoteAssociations(normalizedDeck);
     state.mode = modeSel.value;
+    updateDifficultyChip();
     state.deck = normalizedDeck;
     buildQueue();
     mainScreen.style.display='none';
@@ -1522,6 +1631,7 @@
     answerEl.textContent = '';
     dirChip.textContent = state.dir==='he2en' ? 'Heb → Eng' : 'Eng → Heb';
     liveLevel.textContent = 'Level: ' + state.level.charAt(0).toUpperCase()+state.level.slice(1);
+    updateDifficultyChip();
 
     if(state.mode==='type'){
       userAnswer.value=''; userAnswer.style.display='block'; userAnswer.focus();
@@ -1600,21 +1710,58 @@
       return true;
     }
 
-    const ranked = pool.map(x=>({ x, s: similarity(x, comparisonTarget) }));
+    const difficulty = state.mode==='mc4' ? (state.difficulty || 'hard') : 'hard';
+    const scoreFor = (value)=>{
+      const norm = normalize(value);
+      if(!norm) return 0;
+      return similarity(norm, comparisonTarget);
+    };
+    const ranked = pool.map(x=>({ x, s: scoreFor(x) }));
     const closeFirst = ranked.slice().sort((a,b)=>b.s-a.s).map(r=>r.x);
     const midFirst = ranked.slice().sort((a,b)=>Math.abs(0.45-b.s)-Math.abs(0.45-a.s)).map(r=>r.x);
+    const farFirst = ranked.slice().sort((a,b)=>a.s-b.s).map(r=>r.x);
+    const randomPool = shuffle(pool.slice());
+    const fallbackList = (promptIsHeb ? EN_FALLBACK : HE_FALLBACK).slice();
+
+    function filterSimilarity(list, tier){
+      if(!Array.isArray(list) || !list.length) return [];
+      const filtered = list.filter(item=>{
+        const score = scoreFor(item);
+        if(tier==='easy') return score <= 0.35;
+        if(tier==='medium') return score >= 0.2 && score <= 0.65;
+        if(tier==='hard') return score >= 0.4;
+        return true;
+      });
+      return filtered.length ? filtered : [];
+    }
 
     const candidateLists = [];
-    if(semantic.length) candidateLists.push(semantic);
-    if(gens.length) candidateLists.push(gens);
-    if(state.level==='beginner'){
-      candidateLists.push(shuffle(pool.slice()));
-    } else if(state.level==='intermediate'){
+    if(difficulty === 'easy'){
+      const easyRemote = filterSimilarity(semantic.concat(gens), 'easy');
+      if(easyRemote.length) candidateLists.push(easyRemote);
+      if(farFirst.length) candidateLists.push(farFirst);
+      const distantPool = randomPool.filter(option=> scoreFor(option) <= 0.35);
+      if(distantPool.length) candidateLists.push(distantPool);
+      candidateLists.push(fallbackList.slice());
+    } else if(difficulty === 'medium'){
+      const mediumSemantic = filterSimilarity(semantic, 'medium');
+      if(mediumSemantic.length) candidateLists.push(mediumSemantic);
+      const mediumGens = filterSimilarity(gens, 'medium');
+      if(mediumGens.length) candidateLists.push(mediumGens);
       if(midFirst.length) candidateLists.push(midFirst);
-      candidateLists.push(shuffle(pool.slice()));
+      const mediumPool = randomPool.filter(option=>{
+        const score = scoreFor(option);
+        return score >= 0.2 && score <= 0.65;
+      });
+      if(mediumPool.length) candidateLists.push(mediumPool);
+      if(closeFirst.length) candidateLists.push(closeFirst);
+      candidateLists.push(fallbackList.slice());
     } else {
+      if(semantic.length) candidateLists.push(semantic);
+      if(gens.length) candidateLists.push(gens);
       if(closeFirst.length) candidateLists.push(closeFirst);
       if(midFirst.length) candidateLists.push(midFirst);
+      if(randomPool.length) candidateLists.push(randomPool);
     }
 
     candidateLists.forEach(list=>{
@@ -1624,9 +1771,8 @@
     });
 
     if(distractors.length<3){
-      const fallback = promptIsHeb ? EN_FALLBACK.slice() : HE_FALLBACK.slice();
-      shuffle(fallback);
-      for(const option of fallback){
+      const fallbackPool = shuffle(fallbackList.slice());
+      for(const option of fallbackPool){
         if(tryAdd(option) && distractors.length>=3) break;
       }
     }
@@ -1648,7 +1794,7 @@
 
     const choices = [correct, ...distractors.slice(0,3)];
     if(choices.length<4){
-      const more = distractors.slice(3).concat(closeFirst, midFirst, semantic, gens, pool, promptIsHeb?EN_FALLBACK:HE_FALLBACK);
+      const more = distractors.slice(3).concat(closeFirst, midFirst, farFirst, semantic, gens, pool, fallbackList);
       for(const option of more){
         if(choices.length>=4) break;
         const key = normalize(option).toLowerCase();
@@ -1694,8 +1840,15 @@
     const deck = parseRaw(rawEl.value);
     if(deck.length===0){ alert('Please paste lines like: מילה - word'); return; }
     startBtn.disabled = true;
-    startBtn.textContent = 'Preparing smart options…';
     try {
+      let difficultyChoice = state.difficulty || 'hard';
+      if(modeSel.value === 'mc4'){
+        startBtn.textContent = 'Choose difficulty…';
+        difficultyChoice = await requestDifficulty();
+        if(!difficultyChoice) return;
+      }
+      state.difficulty = difficultyChoice || 'hard';
+      startBtn.textContent = 'Preparing smart options…';
       await beginGame(deck);
     } finally {
       startBtn.disabled = false;
@@ -1738,6 +1891,10 @@
 
   // Keys
   document.addEventListener('keydown', (e)=>{
+    if(difficultyModal && difficultyModal.classList.contains('open')){
+      if(e.key==='Escape'){ settleDifficulty(null); }
+      return;
+    }
     if(authModal.classList.contains('open')){ if(e.key==='Escape'){ hideAuthModal(); } return; }
     if(profileModal.classList.contains('open')){ if(e.key==='Escape'){ closeProfileDateMenu(); closeModal(profileModal); } return; }
     if(gameScreen.style.display!=='block') return;
