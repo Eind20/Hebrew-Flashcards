@@ -169,6 +169,7 @@
             <div class="profile-toolbar-actions">
               <button class="btn ghost" id="profileClearFilter" type="button">Show all dates</button>
               <button class="btn ghost" id="profileSelectShown" type="button">Select shown words</button>
+              <button class="btn ghost" id="profileClearSelection" type="button">Clear selection</button>
             </div>
           </div>
           <div class="profile-table-wrap">
@@ -340,6 +341,7 @@
   const profileDateMenu = $('profileDateMenu');
   const profileClearFilter = $('profileClearFilter');
   const profileSelectShown = $('profileSelectShown');
+  const profileClearSelection = $('profileClearSelection');
   const profileTableBody = $('profileTableBody');
   const profilePlayBtn = $('profilePlayBtn');
   const profileSelectedCount = $('profileSelectedCount');
@@ -365,6 +367,7 @@
       profileDateToggle.disabled = true;
     }
     if(profileSelectShown){ profileSelectShown.disabled = true; }
+    if(profileClearSelection){ profileClearSelection.disabled = true; }
     updateProfileSelectionUI();
   }
 
@@ -724,14 +727,16 @@
   }
 
   function updateProfileSelectionUI(){
+    const count = profileState.selected.size;
     if(profilePlayBtn){
-      const count = profileState.selected.size;
       profilePlayBtn.disabled = count===0;
       profilePlayBtn.textContent = count ? `Play with Selected Words (${count})` : 'Play with Selected Words';
     }
     if(profileSelectedCount){
-      const count = profileState.selected.size;
       profileSelectedCount.textContent = count ? `${count} word${count===1?'':'s'} selected.` : 'No words selected.';
+    }
+    if(profileClearSelection){
+      profileClearSelection.disabled = count===0;
     }
   }
 
@@ -844,6 +849,17 @@
       if(!filtered.length) return;
       filtered.forEach(word=> profileState.selected.add(word.key));
       renderProfileTable();
+    });
+  }
+
+  if(profileClearSelection){
+    profileClearSelection.addEventListener('click', ()=>{
+      if(!profileState.selected.size) return;
+      profileState.selected.clear();
+      if(profileTableBody){
+        profileTableBody.querySelectorAll('tr[data-key] input[type="checkbox"]').forEach(cb=>{ cb.checked = false; });
+      }
+      updateProfileSelectionUI();
     });
   }
 
