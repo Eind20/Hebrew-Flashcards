@@ -9,7 +9,7 @@
       --bg:#f7f9fc; --panel:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --danger:#ef4444; --border:#e5e7eb; --ok:#10b981;
     }
     *{box-sizing:border-box}
-    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif; background: var(--bg); color: var(--text); }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif; background: var(--bg); color: var(--text); padding-left:210px; min-height:100vh; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
     h1 { font-size: 26px; margin: 8px 0 12px; }
     textarea { width: 100%; min-height: 220px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background:#fbfdff; }
@@ -24,7 +24,7 @@
     .chip{padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #e0e7ff;color:#3730a3;font-size:12px}
 
     /* Fullscreen game */
-    .game-screen { display: none; position: fixed; inset: 0; background: var(--panel); z-index: 1000; box-sizing: border-box; }
+    .game-screen { display: none; position: fixed; top:0; right:0; bottom:0; left:210px; background: var(--panel); z-index: 900; box-sizing: border-box; }
     .game-header{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel)}
     .back-btn { background: transparent; border: 1px solid var(--border); padding:8px 12px; border-radius:10px; cursor: pointer; }
     .scorebar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:#111827}
@@ -61,9 +61,138 @@
 
     /* Next button */
     #nextBtn{display:none}
+
+    /* Auth sidebar */
+    .auth-sidebar{position:fixed;left:0;top:0;bottom:0;width:210px;background:linear-gradient(180deg,#e0e7ff,#eff6ff);border-right:1px solid var(--border);box-shadow:4px 0 18px rgba(15,23,42,0.05);padding:28px 18px;display:flex;flex-direction:column;gap:18px;z-index:1100}
+    .auth-sidebar h2{margin:0;font-size:18px;color:#1f2937}
+    .auth-meta{font-size:13px;color:var(--muted);line-height:1.4}
+    .auth-sidebar .btn{width:100%}
+    .auth-sidebar .btn + .btn{margin-top:8px}
+    .auth-greeting{font-weight:700;color:#1f2937}
+
+    .top-actions{position:fixed;top:18px;right:24px;display:flex;gap:10px;align-items:center;z-index:1100}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.35);display:none;align-items:center;justify-content:center;z-index:1300;padding:20px}
+    .modal-backdrop.open{display:flex}
+    .modal-card{background:var(--panel);border-radius:18px;padding:26px;width:min(420px,96vw);box-shadow:0 24px 48px rgba(15,23,42,0.16);position:relative}
+    .modal-card h2{margin:0 0 12px;font-size:22px}
+    .modal-card form{display:flex;flex-direction:column;gap:14px}
+    .modal-card label{font-size:13px;color:var(--muted)}
+    .modal-close{position:absolute;top:14px;right:14px;background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
+    .switch-auth{font-size:13px;color:var(--muted)}
+    .switch-auth button{background:none;border:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0}
+    .error-text{color:var(--danger);min-height:18px;font-size:13px}
+    .profile-words{margin-top:12px;}
+    .profile-shell{display:flex;flex-direction:column;gap:12px}
+    .profile-empty{font-size:14px;color:var(--muted);border:1px dashed var(--border);border-radius:12px;padding:24px;background:#f8fafc;text-align:center}
+    .profile-toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
+    .profile-filter{position:relative}
+    .profile-filter .btn{font-size:13px;padding:8px 12px}
+    .profile-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .profile-toolbar-actions .btn{font-size:13px;padding:8px 12px}
+    .profile-date-menu{display:none;position:absolute;z-index:20;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 18px 32px rgba(15,23,42,0.16);padding:12px;min-width:220px;max-height:240px;overflow:auto}
+    .profile-date-menu.open{display:block}
+    .profile-date-menu ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+    .profile-date-menu li{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text)}
+    .profile-date-menu label{display:flex;align-items:center;gap:8px;cursor:pointer}
+    .profile-date-menu small{color:var(--muted);font-size:12px;margin-left:auto}
+    .profile-date-menu button{font-size:12px;padding:4px 6px;border-radius:8px;background:transparent;border:1px solid var(--border);cursor:pointer;color:var(--accent);white-space:nowrap}
+    .profile-date-menu button:hover{background:rgba(37,99,235,0.08)}
+    .profile-table-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;background:#fff;max-height:320px}
+    .profile-table{width:100%;border-collapse:collapse;min-width:100%}
+    .profile-table th,.profile-table td{padding:10px 12px;font-size:13px;text-align:left;border-bottom:1px solid var(--border)}
+    .profile-table tbody tr:hover{background:#f8fafc}
+    .profile-table tbody tr:last-child td{border-bottom:none}
+    .profile-table td:first-child,.profile-table th:first-child{text-align:center}
+    .profile-footer{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+    .profile-selected-count{font-size:13px;color:var(--muted)}
+
+    @media(max-width:900px){
+      body{padding-left:0}
+      .auth-sidebar{position:static;width:auto;flex-direction:row;align-items:center;justify-content:space-between;padding:18px 20px;border-right:none;border-bottom:1px solid var(--border);box-shadow:none;background:linear-gradient(180deg,#f1f5f9,#e2e8f0)}
+      .auth-sidebar .btn{width:auto}
+      .auth-sidebar .btn + .btn{margin-top:0}
+      .wrap{padding:20px 16px}
+      .game-screen{left:0}
+      .top-actions{top:auto;bottom:20px;right:20px}
+    }
   </style>
 </head>
 <body>
+  <aside class="auth-sidebar">
+    <h2>Player Hub</h2>
+    <div>
+      <div class="auth-greeting" id="authGreeting">Welcome, Guest</div>
+      <div class="auth-meta" id="authStatus">Sign in to save your words.</div>
+    </div>
+    <button class="btn" id="authOpenBtn">Sign in / Sign up</button>
+    <button class="btn ghost" id="signOutBtn" style="display:none">Sign out</button>
+  </aside>
+
+  <div class="top-actions">
+    <button class="btn ghost" id="profileBtn" style="display:none">My Profile</button>
+  </div>
+
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="authClose" aria-label="Close">×</button>
+      <h2 id="authModalTitle">Sign in</h2>
+      <p class="auth-meta" id="authModalSubtitle">Access your personal flashcard history.</p>
+      <form id="authForm">
+        <label>Username
+          <input type="text" id="authUsername" autocomplete="username" required />
+        </label>
+        <label>Password
+          <input type="password" id="authPassword" autocomplete="current-password" required />
+        </label>
+        <div class="error-text" id="authError"></div>
+        <button class="btn" type="submit" id="authSubmit">Sign in</button>
+      </form>
+      <p class="switch-auth"><span id="authSwitchPrompt">Don't have an account?</span> <button type="button" id="authSwitch">Sign up</button></p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <div class="modal-card" style="max-width:720px">
+      <button class="modal-close" id="profileClose" aria-label="Close">×</button>
+      <h2 id="profileTitle">My Profile</h2>
+      <p class="auth-meta">Signed in as <strong id="profileUsername">—</strong></p>
+      <div class="profile-words" id="profileWords">
+        <div class="profile-empty" id="profileEmpty">Start a game to collect words you encounter.</div>
+        <div class="profile-shell" id="profileShell" hidden>
+          <div class="profile-toolbar">
+            <div class="profile-filter">
+              <button class="btn ghost profile-date-toggle" id="profileDateToggle" type="button" aria-haspopup="listbox" aria-expanded="false">All dates</button>
+              <div class="profile-date-menu" id="profileDateMenu" role="listbox" aria-multiselectable="true" aria-label="Filter dates"></div>
+            </div>
+            <div class="profile-toolbar-actions">
+              <button class="btn ghost" id="profileClearFilter" type="button">Show all dates</button>
+              <button class="btn ghost" id="profileSelectShown" type="button">Select shown words</button>
+            </div>
+          </div>
+          <div class="profile-table-wrap">
+            <table class="profile-table" aria-describedby="profileTitle">
+              <thead>
+                <tr>
+                  <th scope="col" style="width:40px"></th>
+                  <th scope="col">Word in Hebrew</th>
+                  <th scope="col">Word in English</th>
+                  <th scope="col">Date added</th>
+                </tr>
+              </thead>
+              <tbody id="profileTableBody"></tbody>
+            </table>
+          </div>
+          <div class="profile-footer">
+            <div class="profile-selected-count" id="profileSelectedCount">No words selected.</div>
+            <button class="btn" id="profilePlayBtn" type="button" disabled>Play with Selected Words</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SETUP -->
   <div class="wrap" id="mainScreen">
     <h1>Hebrew ↔ English Flashcard Game</h1>
@@ -185,7 +314,550 @@
   const streakEl = $('streak');
   const dirChip = $('dirChip');
   const liveLevel = $('liveLevel');
+  const authOpenBtn = $('authOpenBtn');
+  const signOutBtn = $('signOutBtn');
+  const authGreeting = $('authGreeting');
+  const authStatus = $('authStatus');
+  const authModal = $('authModal');
+  const authForm = $('authForm');
+  const authModalTitle = $('authModalTitle');
+  const authModalSubtitle = $('authModalSubtitle');
+  const authUsername = $('authUsername');
+  const authPassword = $('authPassword');
+  const authError = $('authError');
+  const authSubmit = $('authSubmit');
+  const authSwitch = $('authSwitch');
+  const authSwitchPrompt = $('authSwitchPrompt');
+  const authClose = $('authClose');
+  const profileBtn = $('profileBtn');
+  const profileModal = $('profileModal');
+  const profileClose = $('profileClose');
+  const profileUsername = $('profileUsername');
+  const profileWords = $('profileWords');
+  const profileEmpty = $('profileEmpty');
+  const profileShell = $('profileShell');
+  const profileDateToggle = $('profileDateToggle');
+  const profileDateMenu = $('profileDateMenu');
+  const profileClearFilter = $('profileClearFilter');
+  const profileSelectShown = $('profileSelectShown');
+  const profileTableBody = $('profileTableBody');
+  const profilePlayBtn = $('profilePlayBtn');
+  const profileSelectedCount = $('profileSelectedCount');
   let audioCtx;
+
+  const USERS_KEY = 'hf_users_v1';
+  const CURRENT_USER_KEY = 'hf_current_user';
+  const authState = { mode:'signin', user:null };
+  const profileState = { filterDates:new Set(), selected:new Set(), words:[], wordsByKey:new Map(), dateLabels:new Map() };
+
+  function resetProfileState(){
+    profileState.filterDates.clear();
+    profileState.selected.clear();
+    profileState.words = [];
+    profileState.wordsByKey.clear();
+    profileState.dateLabels.clear();
+    if(profileDateMenu){
+      profileDateMenu.innerHTML = '';
+      profileDateMenu.classList.remove('open');
+    }
+    if(profileDateToggle){
+      profileDateToggle.textContent = 'All dates';
+      profileDateToggle.disabled = true;
+    }
+    if(profileSelectShown){ profileSelectShown.disabled = true; }
+    updateProfileSelectionUI();
+  }
+
+  function loadUsers(){
+    try {
+      const raw = localStorage.getItem(USERS_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(u=>u && typeof u.username==='string' && typeof u.password==='string')
+        .map(u=>({
+          username: u.username,
+          password: u.password,
+          words: Array.isArray(u.words) ? u.words.map(w=>normalizeWordEntry(w)) : []
+        }));
+    } catch(err){
+      console.warn('Could not parse users from storage', err);
+      return [];
+    }
+  }
+
+  function canonicalKey(he, enList){
+    const hePart = (he||'').toString().trim().toLowerCase();
+    const list = Array.isArray(enList) ? enList : (enList ? [enList] : []);
+    const normalized = list
+      .map(val=>val==null?'':String(val).trim().toLowerCase())
+      .filter(Boolean);
+    const uniqueSorted = Array.from(new Set(normalized)).sort();
+    return hePart + '||' + uniqueSorted.join('||');
+  }
+
+  function sanitizeEnList(value){
+    const arr = Array.isArray(value) ? value : (value ? [value] : []);
+    const seen = new Set();
+    const cleaned = [];
+    for(const entry of arr){
+      if(entry==null) continue;
+      const str = String(entry).trim();
+      if(!str) continue;
+      const key = str.toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      cleaned.push(str);
+    }
+    return cleaned;
+  }
+
+  function formatDateKey(ts){
+    const d = new Date(ts || Date.now());
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function formatDateLabel(ts){
+    const d = new Date(ts || Date.now());
+    return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+  }
+
+  function normalizeWordEntry(entry){
+    if(!entry || typeof entry !== 'object'){
+      const value = entry!=null ? String(entry) : '';
+      const enList = value ? [value] : [];
+      const key = canonicalKey(value, enList) || Math.random().toString(36).slice(2);
+      return { key, he:value, en:enList, addedAt:Date.now() };
+    }
+    const he = typeof entry.he==='string' ? entry.he.trim() : '';
+    const enList = sanitizeEnList(entry.en);
+    const keyBase = entry.key && typeof entry.key==='string' && entry.key.trim() ? entry.key : canonicalKey(he, enList);
+    return {
+      key: keyBase || Math.random().toString(36).slice(2),
+      he,
+      en: enList,
+      addedAt: entry.addedAt || Date.now()
+    };
+  }
+
+  function saveUsers(users){
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+
+  function setCurrentUser(username){
+    if(username){
+      localStorage.setItem(CURRENT_USER_KEY, username);
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    }
+  }
+
+  function refreshAuth(){
+    const current = localStorage.getItem(CURRENT_USER_KEY);
+    const users = loadUsers();
+    if(current){
+      const found = users.find(u=>u.username === current);
+      if(found){
+        authState.user = { ...found, words: Array.isArray(found.words)? found.words.map(normalizeWordEntry) : [] };
+      } else {
+        authState.user = null;
+        setCurrentUser(null);
+      }
+    } else {
+      authState.user = null;
+    }
+    updateAuthUI();
+  }
+
+  function updateAuthUI(){
+    if(authState.user){
+      const count = Array.isArray(authState.user.words)? authState.user.words.length : 0;
+      authGreeting.textContent = 'Welcome, ' + authState.user.username;
+      authStatus.textContent = count ? `${count} saved word${count===1?'':'s'}.` : 'No saved words yet—start a game!';
+      signOutBtn.style.display = 'block';
+      profileBtn.style.display = 'inline-flex';
+      authOpenBtn.textContent = 'Switch account';
+    } else {
+      authGreeting.textContent = 'Welcome, Guest';
+      authStatus.textContent = 'Sign in to save your words.';
+      signOutBtn.style.display = 'none';
+      profileBtn.style.display = 'none';
+      authOpenBtn.textContent = 'Sign in / Sign up';
+      if(profileShell){ profileShell.hidden = true; }
+      if(profileEmpty){
+        profileEmpty.style.display = 'block';
+        profileEmpty.textContent = 'Sign in to view your profile.';
+      }
+      if(profileUsername){ profileUsername.textContent = '—'; }
+      resetProfileState();
+    }
+  }
+
+  function setAuthMode(mode){
+    authState.mode = mode;
+    const isSignup = mode === 'signup';
+    authModalTitle.textContent = isSignup ? 'Create account' : 'Sign in';
+    authModalSubtitle.textContent = isSignup ? 'Choose a username and password to save your progress.' : 'Enter your credentials to continue.';
+    authSubmit.textContent = isSignup ? 'Sign up' : 'Sign in';
+    authSwitchPrompt.textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
+    authSwitch.textContent = isSignup ? 'Sign in' : 'Sign up';
+    authPassword.value = '';
+    authError.textContent = '';
+  }
+
+  function openModal(modal){ modal.classList.add('open'); }
+  function closeModal(modal){ modal.classList.remove('open'); }
+
+  function openAuthModal(mode){
+    setAuthMode(mode);
+    authError.textContent = '';
+    authForm.reset();
+    if(authState.user && mode==='signin'){
+      authUsername.value = authState.user.username;
+    }
+    openModal(authModal);
+    setTimeout(()=>{ authUsername.focus(); }, 50);
+  }
+
+  function hideAuthModal(){
+    closeModal(authModal);
+    authForm.reset();
+    authError.textContent = '';
+  }
+
+  function handleAuthSubmit(){
+    const username = authUsername.value.trim();
+    const password = authPassword.value.trim();
+    if(username.length < 3){ authError.textContent = 'Username must be at least 3 characters.'; return; }
+    if(password.length < 4){ authError.textContent = 'Password must be at least 4 characters.'; return; }
+    const users = loadUsers();
+    if(authState.mode === 'signup'){
+      const exists = users.find(u=>u.username.toLowerCase() === username.toLowerCase());
+      if(exists){ authError.textContent = 'That username is already taken.'; return; }
+      const newUser = { username, password, words: [] };
+      users.push(newUser);
+      saveUsers(users);
+      setCurrentUser(username);
+      authState.user = { ...newUser };
+      resetProfileState();
+      updateAuthUI();
+      hideAuthModal();
+    } else {
+      const exists = users.find(u=>u.username === username);
+      if(!exists || exists.password !== password){ authError.textContent = 'Invalid username or password.'; return; }
+      setCurrentUser(exists.username);
+      authState.user = { ...exists, words: Array.isArray(exists.words)? exists.words.map(normalizeWordEntry) : [] };
+      resetProfileState();
+      updateAuthUI();
+      hideAuthModal();
+    }
+  }
+
+  function renderProfile(){
+    if(!authState.user){
+      profileUsername.textContent = '—';
+      if(profileShell) profileShell.hidden = true;
+      if(profileEmpty){
+        profileEmpty.style.display = 'block';
+        profileEmpty.textContent = 'Sign in to view your profile.';
+      }
+      if(profileDateToggle) profileDateToggle.disabled = true;
+      return;
+    }
+    profileUsername.textContent = authState.user.username;
+    const words = Array.isArray(authState.user.words) ? authState.user.words.map(normalizeWordEntry) : [];
+    const sorted = words.slice().sort((a,b)=>(b.addedAt||0)-(a.addedAt||0));
+    profileState.words = sorted;
+    profileState.wordsByKey = new Map(sorted.map(word=>[word.key, word]));
+    const dateGroups = new Map();
+    sorted.forEach(word=>{
+      const key = formatDateKey(word.addedAt);
+      if(!dateGroups.has(key)){
+        dateGroups.set(key, { key, label: formatDateLabel(word.addedAt), words: [] });
+      }
+      dateGroups.get(key).words.push(word);
+    });
+    profileState.dateLabels = new Map(Array.from(dateGroups.values()).map(group=>[group.key, group.label]));
+    for(const key of Array.from(profileState.filterDates)){
+      if(!dateGroups.has(key)) profileState.filterDates.delete(key);
+    }
+    if(!sorted.length){
+      if(profileShell) profileShell.hidden = true;
+      if(profileEmpty){
+        profileEmpty.style.display = 'block';
+        profileEmpty.textContent = 'No words saved yet. Play a round to start collecting!';
+      }
+      if(profileDateToggle) profileDateToggle.disabled = true;
+      profileState.selected.clear();
+      updateProfileSelectionUI();
+      updateDateToggleLabel();
+      return;
+    }
+    if(profileEmpty) profileEmpty.style.display = 'none';
+    if(profileShell) profileShell.hidden = false;
+    if(profileDateToggle) profileDateToggle.disabled = false;
+    buildDateMenu(Array.from(dateGroups.values()).sort((a,b)=>b.key.localeCompare(a.key)));
+    renderProfileTable();
+  }
+
+  function buildDateMenu(groups){
+    if(!profileDateMenu) return;
+    profileDateMenu.innerHTML = '';
+    profileDateMenu.classList.remove('open');
+    if(profileDateToggle) profileDateToggle.disabled = groups.length===0;
+    if(profileDateToggle) profileDateToggle.setAttribute('aria-expanded', 'false');
+    if(!groups.length){
+      updateDateToggleLabel();
+      return;
+    }
+    const list = document.createElement('ul');
+    groups.forEach(group=>{
+      const item = document.createElement('li');
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = group.key;
+      checkbox.checked = profileState.filterDates.has(group.key);
+      const text = document.createElement('span');
+      text.textContent = group.label;
+      const count = document.createElement('small');
+      count.textContent = `${group.words.length} word${group.words.length===1?'':'s'}`;
+      label.appendChild(checkbox);
+      label.appendChild(text);
+      label.appendChild(count);
+      const selectBtn = document.createElement('button');
+      selectBtn.type = 'button';
+      selectBtn.className = 'profile-date-select';
+      selectBtn.setAttribute('data-date-select', group.key);
+      selectBtn.textContent = 'Select all';
+      item.appendChild(label);
+      item.appendChild(selectBtn);
+      list.appendChild(item);
+    });
+    profileDateMenu.appendChild(list);
+    updateDateToggleLabel();
+  }
+
+  function getFilteredWords(){
+    if(!profileState.words.length) return [];
+    if(!profileState.filterDates.size) return profileState.words;
+    return profileState.words.filter(word=>profileState.filterDates.has(formatDateKey(word.addedAt)));
+  }
+
+  function cleanupProfileSelection(){
+    for(const key of Array.from(profileState.selected)){
+      if(!profileState.wordsByKey.has(key)){
+        profileState.selected.delete(key);
+      }
+    }
+  }
+
+  function renderProfileTable(){
+    if(!profileTableBody) return;
+    cleanupProfileSelection();
+    profileTableBody.innerHTML = '';
+    const filtered = getFilteredWords();
+    if(profileSelectShown){ profileSelectShown.disabled = filtered.length===0; }
+    if(!filtered.length){
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 4;
+      cell.textContent = profileState.words.length ? 'No words for the selected date(s).' : 'No words saved yet.';
+      cell.style.textAlign = 'center';
+      row.appendChild(cell);
+      profileTableBody.appendChild(row);
+      updateProfileSelectionUI();
+      return;
+    }
+    filtered.forEach(word=>{
+      const row = document.createElement('tr');
+      row.setAttribute('data-key', word.key);
+      const checkboxCell = document.createElement('td');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = profileState.selected.has(word.key);
+      checkbox.setAttribute('aria-label', `Select ${word.he || (Array.isArray(word.en)?word.en[0]:word.en) || 'word'}`);
+      checkbox.addEventListener('change', ()=>{
+        if(checkbox.checked){ profileState.selected.add(word.key); }
+        else { profileState.selected.delete(word.key); }
+        updateProfileSelectionUI();
+      });
+      checkboxCell.appendChild(checkbox);
+      row.appendChild(checkboxCell);
+
+      const heCell = document.createElement('td');
+      heCell.textContent = word.he || '';
+      heCell.setAttribute('dir', looksHebrew(word.he)?'rtl':'ltr');
+      row.appendChild(heCell);
+
+      const enCell = document.createElement('td');
+      const enList = Array.isArray(word.en) ? word.en : [word.en];
+      enCell.textContent = enList.filter(Boolean).join(' / ');
+      row.appendChild(enCell);
+
+      const dateCell = document.createElement('td');
+      dateCell.textContent = formatDateLabel(word.addedAt);
+      row.appendChild(dateCell);
+
+      profileTableBody.appendChild(row);
+    });
+    updateProfileSelectionUI();
+  }
+
+  function updateDateToggleLabel(){
+    if(!profileDateToggle) return;
+    const count = profileState.filterDates.size;
+    if(count===0){
+      profileDateToggle.textContent = 'All dates';
+      return;
+    }
+    if(count===1){
+      const first = profileState.filterDates.values().next().value;
+      profileDateToggle.textContent = profileState.dateLabels.get(first) || first;
+      return;
+    }
+    profileDateToggle.textContent = `${count} dates`;
+  }
+
+  function updateProfileSelectionUI(){
+    if(profilePlayBtn){
+      const count = profileState.selected.size;
+      profilePlayBtn.disabled = count===0;
+      profilePlayBtn.textContent = count ? `Play with Selected Words (${count})` : 'Play with Selected Words';
+    }
+    if(profileSelectedCount){
+      const count = profileState.selected.size;
+      profileSelectedCount.textContent = count ? `${count} word${count===1?'':'s'} selected.` : 'No words selected.';
+    }
+  }
+
+  function closeProfileDateMenu(){
+    if(profileDateMenu) profileDateMenu.classList.remove('open');
+    if(profileDateToggle) profileDateToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function recordWordForUser(pair){
+    if(!authState.user) return;
+    const users = loadUsers();
+    const idx = users.findIndex(u=>u.username === authState.user.username);
+    if(idx === -1) return;
+    const normalizedPair = normalizePairForDeck(pair);
+    if(!normalizedPair.he || !normalizedPair.en.length) return;
+    const key = canonicalKey(normalizedPair.he, normalizedPair.en);
+    const words = Array.isArray(users[idx].words) ? users[idx].words.map(normalizeWordEntry) : [];
+    const map = new Map(words.map(word=>[word.key, word]));
+    if(map.has(key)) return;
+    const entry = { key, he: normalizedPair.he, en: normalizedPair.en, addedAt: Date.now() };
+    map.set(key, entry);
+    const updatedWords = Array.from(map.values());
+    users[idx].words = updatedWords;
+    saveUsers(users);
+    authState.user = { ...users[idx], words: updatedWords.slice() };
+    updateAuthUI();
+    if(profileModal.classList.contains('open')){ renderProfile(); }
+  }
+
+  refreshAuth();
+
+  authOpenBtn.addEventListener('click', ()=>{
+    const existingUsers = loadUsers();
+    const mode = authState.user ? 'signin' : (existingUsers.length ? 'signin' : 'signup');
+    openAuthModal(mode);
+  });
+
+  authSwitch.addEventListener('click', ()=>{
+    const nextMode = authState.mode === 'signin' ? 'signup' : 'signin';
+    setAuthMode(nextMode);
+  });
+
+  authClose.addEventListener('click', hideAuthModal);
+  authModal.addEventListener('click', (e)=>{ if(e.target === authModal) hideAuthModal(); });
+  authForm.addEventListener('submit', (e)=>{ e.preventDefault(); handleAuthSubmit(); });
+  signOutBtn.addEventListener('click', ()=>{ setCurrentUser(null); authState.user = null; updateAuthUI(); closeProfileDateMenu(); closeModal(profileModal); });
+
+  profileBtn.addEventListener('click', ()=>{ closeProfileDateMenu(); renderProfile(); openModal(profileModal); });
+  profileClose.addEventListener('click', ()=>{ closeProfileDateMenu(); closeModal(profileModal); });
+  profileModal.addEventListener('click', (e)=>{ if(e.target === profileModal){ closeProfileDateMenu(); closeModal(profileModal); } });
+
+  if(profileDateToggle){
+    profileDateToggle.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(profileDateMenu){
+        const isOpen = profileDateMenu.classList.toggle('open');
+        profileDateToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      }
+    });
+  }
+
+  if(profileDateMenu){
+    profileDateMenu.addEventListener('change', (e)=>{
+      const target = e.target;
+      if(target && target.matches('input[type="checkbox"]')){
+        const key = target.value;
+        if(target.checked){ profileState.filterDates.add(key); }
+        else { profileState.filterDates.delete(key); }
+        renderProfileTable();
+        updateDateToggleLabel();
+      }
+    });
+    profileDateMenu.addEventListener('click', (e)=>{
+      const button = e.target.closest('button[data-date-select]');
+      if(button){
+        e.preventDefault();
+        e.stopPropagation();
+        const key = button.getAttribute('data-date-select');
+        if(key){
+          const matches = profileState.words.filter(word=>formatDateKey(word.addedAt)===key);
+          matches.forEach(word=> profileState.selected.add(word.key));
+          renderProfileTable();
+        }
+      }
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    if(!profileDateMenu || !profileDateMenu.classList.contains('open')) return;
+    if(profileDateMenu.contains(e.target)) return;
+    if(profileDateToggle && profileDateToggle.contains(e.target)) return;
+    closeProfileDateMenu();
+  });
+
+  if(profileClearFilter){
+    profileClearFilter.addEventListener('click', ()=>{
+      profileState.filterDates.clear();
+      if(profileDateMenu){
+        profileDateMenu.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ cb.checked = false; });
+      }
+      updateDateToggleLabel();
+      renderProfileTable();
+      closeProfileDateMenu();
+    });
+  }
+
+  if(profileSelectShown){
+    profileSelectShown.addEventListener('click', ()=>{
+      const filtered = getFilteredWords();
+      if(!filtered.length) return;
+      filtered.forEach(word=> profileState.selected.add(word.key));
+      renderProfileTable();
+    });
+  }
+
+  if(profilePlayBtn){
+    profilePlayBtn.addEventListener('click', ()=>{
+      const selectedWords = profileState.words.filter(word=>profileState.selected.has(word.key));
+      if(!selectedWords.length) return;
+      const deck = selectedWords.map(word=>({ he: word.he, en: Array.isArray(word.en) ? word.en.slice() : sanitizeEnList(word.en) }));
+      rawEl.value = deck.map(word=>`${word.he} - ${word.en.join(', ')}`).join('\n');
+      closeProfileDateMenu();
+      closeModal(profileModal);
+      beginGame(deck);
+    });
+  }
 
   // --- Utils ---
   function looksHebrew(s){ return /[\u0590-\u05FF]/.test(s||''); }
@@ -206,6 +878,19 @@
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
   function setDir(el, text){ el.setAttribute('dir', looksHebrew(text)?'rtl':'ltr'); }
   function normalize(s){ return (s||'').toString().trim(); }
+
+  function normalizePairForDeck(pair){
+    if(!pair) return { he:'', en:[] };
+    const he = typeof pair.he==='string' ? pair.he.trim() : '';
+    const enList = sanitizeEnList(pair.en);
+    return { he, en: enList };
+  }
+
+  function normalizeDeck(deck){
+    return (Array.isArray(deck)?deck:[])
+      .map(normalizePairForDeck)
+      .filter(pair=>pair.he && pair.en.length);
+  }
 
   // --- Parsing ---
   function parseRaw(text){
@@ -283,16 +968,37 @@
   }
 
   // --- State ---
-  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner' };
+  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner', seen:new Set(), currentIdx:null, currentPair:null };
 
   function buildQueue(){
     state.queue = state.deck.map((_,i)=>i);
     if(shuffleSel.value==='1') shuffle(state.queue);
     state.i=0; state.score=0; state.streak=0; state.revealed=false;
+    state.seen = new Set();
+    state.currentIdx = null;
+    state.currentPair = null;
     totalEl.textContent = state.queue.length;
     remainingEl.textContent = state.queue.length;
   }
   function nextDirection(){ return dirSel.value==='mixed' ? (Math.random()>0.5?'he2en':'en2he') : dirSel.value; }
+
+  function beginGame(deck){
+    const normalizedDeck = normalizeDeck(deck);
+    if(!normalizedDeck.length){
+      alert('Please include at least one valid word pair.');
+      return;
+    }
+    state.mode = modeSel.value;
+    const desiredLevel = levelSel.value==='auto' ? detectLevel(normalizedDeck) : levelSel.value;
+    state.level = desiredLevel;
+    levelNote.textContent = 'Level: ' + desiredLevel;
+    liveLevel.textContent = 'Level: ' + desiredLevel;
+    state.deck = normalizedDeck;
+    buildQueue();
+    mainScreen.style.display='none';
+    gameScreen.style.display='block';
+    showCard();
+  }
 
   function hideAllUI(){
     userAnswer.style.display='none';
@@ -321,9 +1027,16 @@
     }
     const idx = state.queue[state.i];
     const pair = state.deck[idx];
+    state.currentIdx = idx;
+    state.currentPair = pair;
     state.dir = nextDirection();
     const promptText = state.dir==='he2en' ? pair.he : (pair.en[0]||'');
     const answerText = state.dir==='he2en' ? pair.en.join(' / ') : pair.he;
+
+    if(!state.seen.has(idx)){
+      state.seen.add(idx);
+      recordWordForUser(pair);
+    }
 
     hideAllUI();
     state.revealed = false;
@@ -427,12 +1140,7 @@
   startBtn.addEventListener('click', ()=>{
     const deck = parseRaw(rawEl.value);
     if(deck.length===0){ alert('Please paste lines like: מילה - word'); return; }
-    state.mode = modeSel.value;
-    const autoLevel = levelSel.value==='auto' ? detectLevel(deck) : levelSel.value;
-    state.level = autoLevel; levelNote.textContent = 'Level: ' + autoLevel; liveLevel.textContent = 'Level: ' + autoLevel;
-    state.deck = deck; buildQueue();
-    mainScreen.style.display='none'; gameScreen.style.display='block';
-    showCard();
+    beginGame(deck);
   });
 
   backBtn.addEventListener('click', ()=>{
@@ -462,6 +1170,8 @@
 
   // Keys
   document.addEventListener('keydown', (e)=>{
+    if(authModal.classList.contains('open')){ if(e.key==='Escape'){ hideAuthModal(); } return; }
+    if(profileModal.classList.contains('open')){ if(e.key==='Escape'){ closeProfileDateMenu(); closeModal(profileModal); } return; }
     if(gameScreen.style.display!=='block') return;
     if(e.key==='Escape'){ backBtn.click(); }
     if(state.mode==='flash'){
