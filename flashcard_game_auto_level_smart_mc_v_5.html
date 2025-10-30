@@ -624,17 +624,7 @@
     correctBtn.style.display='none';
     wrongBtn.style.display='none';
     nextBtn.style.display='none';
-    [optA,optB,optC,optD].forEach((btn,i)=>{
-    btn.onclick = () => {
-      if(btn.disabled) return;
-      [optA,optB,optC,optD].forEach(b=>b.disabled=true);
-      const ok = i===state.mc.correctIndex;
-      const correctText = state.mc.choices[state.mc.correctIndex];
-      if(ok){ btn.classList.add('correct'); answerEl.textContent = '✓ ' + correctText; }
-      else { btn.classList.add('wrong'); answerEl.textContent = '✗ ' + correctText; }
-      endRound(ok);
-    };
-  });
+    nextBtn.onclick = null;
   }
 
   function showCard(){
@@ -781,12 +771,20 @@
 
   // MC actions
   [optA,optB,optC,optD].forEach((btn,i)=>{
-    btn.onclick = () => {
+    btn.addEventListener('click', ()=>{
+      if(btn.disabled) return;
+      [optA,optB,optC,optD].forEach(b=>b.disabled=true);
       const ok = i===state.mc.correctIndex;
       const correctText = state.mc.choices[state.mc.correctIndex];
-      answerEl.textContent = (ok?'✓ ':'✗ ') + correctText;
-      mark(ok);
-    };
+      if(ok){
+        btn.classList.add('correct');
+        answerEl.textContent = '✓ ' + correctText;
+      } else {
+        btn.classList.add('wrong');
+        answerEl.textContent = '✗ ' + correctText;
+      }
+      endRound(ok);
+    });
   });
 
   // Keys
