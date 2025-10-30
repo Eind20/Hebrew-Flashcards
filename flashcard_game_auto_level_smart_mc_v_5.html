@@ -9,7 +9,7 @@
       --bg:#f7f9fc; --panel:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb; --danger:#ef4444; --border:#e5e7eb; --ok:#10b981;
     }
     *{box-sizing:border-box}
-    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif; background: var(--bg); color: var(--text); }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif; background: var(--bg); color: var(--text); padding-left:210px; min-height:100vh; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
     h1 { font-size: 26px; margin: 8px 0 12px; }
     textarea { width: 100%; min-height: 220px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background:#fbfdff; }
@@ -24,7 +24,7 @@
     .chip{padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #e0e7ff;color:#3730a3;font-size:12px}
 
     /* Fullscreen game */
-    .game-screen { display: none; position: fixed; inset: 0; background: var(--panel); z-index: 1000; box-sizing: border-box; }
+    .game-screen { display: none; position: fixed; top:0; right:0; bottom:0; left:210px; background: var(--panel); z-index: 900; box-sizing: border-box; }
     .game-header{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel)}
     .back-btn { background: transparent; border: 1px solid var(--border); padding:8px 12px; border-radius:10px; cursor: pointer; }
     .scorebar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:#111827}
@@ -61,9 +61,89 @@
 
     /* Next button */
     #nextBtn{display:none}
+
+    /* Auth sidebar */
+    .auth-sidebar{position:fixed;left:0;top:0;bottom:0;width:210px;background:linear-gradient(180deg,#e0e7ff,#eff6ff);border-right:1px solid var(--border);box-shadow:4px 0 18px rgba(15,23,42,0.05);padding:28px 18px;display:flex;flex-direction:column;gap:18px;z-index:1100}
+    .auth-sidebar h2{margin:0;font-size:18px;color:#1f2937}
+    .auth-meta{font-size:13px;color:var(--muted);line-height:1.4}
+    .auth-sidebar .btn{width:100%}
+    .auth-sidebar .btn + .btn{margin-top:8px}
+    .auth-greeting{font-weight:700;color:#1f2937}
+
+    .top-actions{position:fixed;top:18px;right:24px;display:flex;gap:10px;align-items:center;z-index:1100}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.35);display:none;align-items:center;justify-content:center;z-index:1300;padding:20px}
+    .modal-backdrop.open{display:flex}
+    .modal-card{background:var(--panel);border-radius:18px;padding:26px;width:min(420px,96vw);box-shadow:0 24px 48px rgba(15,23,42,0.16);position:relative}
+    .modal-card h2{margin:0 0 12px;font-size:22px}
+    .modal-card form{display:flex;flex-direction:column;gap:14px}
+    .modal-card label{font-size:13px;color:var(--muted)}
+    .modal-close{position:absolute;top:14px;right:14px;background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
+    .switch-auth{font-size:13px;color:var(--muted)}
+    .switch-auth button{background:none;border:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0}
+    .error-text{color:var(--danger);min-height:18px;font-size:13px}
+    .profile-words{max-height:320px;overflow:auto;margin-top:12px;border:1px solid var(--border);border-radius:12px;background:#fff;padding:12px}
+    .profile-words ul{margin:0;padding-left:18px}
+    .profile-words li{margin-bottom:8px}
+    .profile-empty{font-size:14px;color:var(--muted)}
+
+    @media(max-width:900px){
+      body{padding-left:0}
+      .auth-sidebar{position:static;width:auto;flex-direction:row;align-items:center;justify-content:space-between;padding:18px 20px;border-right:none;border-bottom:1px solid var(--border);box-shadow:none;background:linear-gradient(180deg,#f1f5f9,#e2e8f0)}
+      .auth-sidebar .btn{width:auto}
+      .auth-sidebar .btn + .btn{margin-top:0}
+      .wrap{padding:20px 16px}
+      .game-screen{left:0}
+      .top-actions{top:auto;bottom:20px;right:20px}
+    }
   </style>
 </head>
 <body>
+  <aside class="auth-sidebar">
+    <h2>Player Hub</h2>
+    <div>
+      <div class="auth-greeting" id="authGreeting">Welcome, Guest</div>
+      <div class="auth-meta" id="authStatus">Sign in to save your words.</div>
+    </div>
+    <button class="btn" id="authOpenBtn">Sign in / Sign up</button>
+    <button class="btn ghost" id="signOutBtn" style="display:none">Sign out</button>
+  </aside>
+
+  <div class="top-actions">
+    <button class="btn ghost" id="profileBtn" style="display:none">My Profile</button>
+  </div>
+
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="authClose" aria-label="Close">×</button>
+      <h2 id="authModalTitle">Sign in</h2>
+      <p class="auth-meta" id="authModalSubtitle">Access your personal flashcard history.</p>
+      <form id="authForm">
+        <label>Username
+          <input type="text" id="authUsername" autocomplete="username" required />
+        </label>
+        <label>Password
+          <input type="password" id="authPassword" autocomplete="current-password" required />
+        </label>
+        <div class="error-text" id="authError"></div>
+        <button class="btn" type="submit" id="authSubmit">Sign in</button>
+      </form>
+      <p class="switch-auth"><span id="authSwitchPrompt">Don't have an account?</span> <button type="button" id="authSwitch">Sign up</button></p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <div class="modal-card" style="max-width:520px">
+      <button class="modal-close" id="profileClose" aria-label="Close">×</button>
+      <h2 id="profileTitle">My Profile</h2>
+      <p class="auth-meta">Signed in as <strong id="profileUsername">—</strong></p>
+      <div class="profile-words" id="profileWords">
+        <div class="profile-empty">Start a game to collect words you encounter.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- SETUP -->
   <div class="wrap" id="mainScreen">
     <h1>Hebrew ↔ English Flashcard Game</h1>
@@ -185,7 +265,246 @@
   const streakEl = $('streak');
   const dirChip = $('dirChip');
   const liveLevel = $('liveLevel');
+  const authOpenBtn = $('authOpenBtn');
+  const signOutBtn = $('signOutBtn');
+  const authGreeting = $('authGreeting');
+  const authStatus = $('authStatus');
+  const authModal = $('authModal');
+  const authForm = $('authForm');
+  const authModalTitle = $('authModalTitle');
+  const authModalSubtitle = $('authModalSubtitle');
+  const authUsername = $('authUsername');
+  const authPassword = $('authPassword');
+  const authError = $('authError');
+  const authSubmit = $('authSubmit');
+  const authSwitch = $('authSwitch');
+  const authSwitchPrompt = $('authSwitchPrompt');
+  const authClose = $('authClose');
+  const profileBtn = $('profileBtn');
+  const profileModal = $('profileModal');
+  const profileClose = $('profileClose');
+  const profileUsername = $('profileUsername');
+  const profileWords = $('profileWords');
   let audioCtx;
+
+  const USERS_KEY = 'hf_users_v1';
+  const CURRENT_USER_KEY = 'hf_current_user';
+  const authState = { mode:'signin', user:null };
+
+  function loadUsers(){
+    try {
+      const raw = localStorage.getItem(USERS_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(u=>u && typeof u.username==='string' && typeof u.password==='string')
+        .map(u=>({
+          username: u.username,
+          password: u.password,
+          words: Array.isArray(u.words) ? u.words.map(w=>normalizeWordEntry(w)) : []
+        }));
+    } catch(err){
+      console.warn('Could not parse users from storage', err);
+      return [];
+    }
+  }
+
+  function normalizeWordEntry(entry){
+    if(!entry || typeof entry !== 'object'){
+      return { key:String(entry||'')||Math.random().toString(36).slice(2), he:String(entry||''), en:[String(entry||'')], addedAt:Date.now() };
+    }
+    const he = typeof entry.he==='string' ? entry.he : '';
+    const enList = Array.isArray(entry.en) ? entry.en.filter(Boolean).map(String) : (entry.en ? [String(entry.en)] : []);
+    const keyBase = he.trim() + '||' + enList.join('||').toLowerCase();
+    return {
+      key: entry.key || keyBase,
+      he,
+      en: enList,
+      addedAt: entry.addedAt || Date.now()
+    };
+  }
+
+  function saveUsers(users){
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+
+  function setCurrentUser(username){
+    if(username){
+      localStorage.setItem(CURRENT_USER_KEY, username);
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    }
+  }
+
+  function refreshAuth(){
+    const current = localStorage.getItem(CURRENT_USER_KEY);
+    const users = loadUsers();
+    if(current){
+      const found = users.find(u=>u.username === current);
+      if(found){
+        authState.user = { ...found, words: Array.isArray(found.words)? found.words.map(normalizeWordEntry) : [] };
+      } else {
+        authState.user = null;
+        setCurrentUser(null);
+      }
+    } else {
+      authState.user = null;
+    }
+    updateAuthUI();
+  }
+
+  function updateAuthUI(){
+    if(authState.user){
+      const count = Array.isArray(authState.user.words)? authState.user.words.length : 0;
+      authGreeting.textContent = 'Welcome, ' + authState.user.username;
+      authStatus.textContent = count ? `${count} saved word${count===1?'':'s'}.` : 'No saved words yet—start a game!';
+      signOutBtn.style.display = 'block';
+      profileBtn.style.display = 'inline-flex';
+      authOpenBtn.textContent = 'Switch account';
+    } else {
+      authGreeting.textContent = 'Welcome, Guest';
+      authStatus.textContent = 'Sign in to save your words.';
+      signOutBtn.style.display = 'none';
+      profileBtn.style.display = 'none';
+      authOpenBtn.textContent = 'Sign in / Sign up';
+    }
+  }
+
+  function setAuthMode(mode){
+    authState.mode = mode;
+    const isSignup = mode === 'signup';
+    authModalTitle.textContent = isSignup ? 'Create account' : 'Sign in';
+    authModalSubtitle.textContent = isSignup ? 'Choose a username and password to save your progress.' : 'Enter your credentials to continue.';
+    authSubmit.textContent = isSignup ? 'Sign up' : 'Sign in';
+    authSwitchPrompt.textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
+    authSwitch.textContent = isSignup ? 'Sign in' : 'Sign up';
+    authPassword.value = '';
+    authError.textContent = '';
+  }
+
+  function openModal(modal){ modal.classList.add('open'); }
+  function closeModal(modal){ modal.classList.remove('open'); }
+
+  function openAuthModal(mode){
+    setAuthMode(mode);
+    authError.textContent = '';
+    authForm.reset();
+    if(authState.user && mode==='signin'){
+      authUsername.value = authState.user.username;
+    }
+    openModal(authModal);
+    setTimeout(()=>{ authUsername.focus(); }, 50);
+  }
+
+  function hideAuthModal(){
+    closeModal(authModal);
+    authForm.reset();
+    authError.textContent = '';
+  }
+
+  function handleAuthSubmit(){
+    const username = authUsername.value.trim();
+    const password = authPassword.value.trim();
+    if(username.length < 3){ authError.textContent = 'Username must be at least 3 characters.'; return; }
+    if(password.length < 4){ authError.textContent = 'Password must be at least 4 characters.'; return; }
+    const users = loadUsers();
+    if(authState.mode === 'signup'){
+      const exists = users.find(u=>u.username.toLowerCase() === username.toLowerCase());
+      if(exists){ authError.textContent = 'That username is already taken.'; return; }
+      const newUser = { username, password, words: [] };
+      users.push(newUser);
+      saveUsers(users);
+      setCurrentUser(username);
+      authState.user = { ...newUser };
+      updateAuthUI();
+      hideAuthModal();
+    } else {
+      const exists = users.find(u=>u.username === username);
+      if(!exists || exists.password !== password){ authError.textContent = 'Invalid username or password.'; return; }
+      setCurrentUser(exists.username);
+      authState.user = { ...exists, words: Array.isArray(exists.words)? exists.words.map(normalizeWordEntry) : [] };
+      updateAuthUI();
+      hideAuthModal();
+    }
+  }
+
+  function renderProfile(){
+    profileWords.innerHTML = '';
+    if(!authState.user){
+      profileUsername.textContent = '—';
+      const empty = document.createElement('div');
+      empty.className = 'profile-empty';
+      empty.textContent = 'Sign in to view your profile.';
+      profileWords.appendChild(empty);
+      return;
+    }
+    profileUsername.textContent = authState.user.username;
+    const words = Array.isArray(authState.user.words) ? authState.user.words.slice().sort((a,b)=>(a.addedAt||0)-(b.addedAt||0)) : [];
+    if(!words.length){
+      const empty = document.createElement('div');
+      empty.className = 'profile-empty';
+      empty.textContent = 'No words saved yet. Play a round to start collecting!';
+      profileWords.appendChild(empty);
+      return;
+    }
+    const list = document.createElement('ul');
+    words.forEach(word=>{
+      const li = document.createElement('li');
+      const heSpan = document.createElement('strong');
+      heSpan.textContent = word.he || '';
+      li.appendChild(heSpan);
+      li.appendChild(document.createTextNode(' – '));
+      const enSpan = document.createElement('span');
+      const enList = Array.isArray(word.en) ? word.en : [word.en];
+      enSpan.textContent = enList.filter(Boolean).join(' / ');
+      li.appendChild(enSpan);
+      list.appendChild(li);
+    });
+    profileWords.appendChild(list);
+  }
+
+  function recordWordForUser(pair){
+    if(!authState.user) return;
+    const users = loadUsers();
+    const idx = users.findIndex(u=>u.username === authState.user.username);
+    if(idx === -1) return;
+    const canonicalEn = Array.isArray(pair.en) ? pair.en.map(s=>s.trim()).filter(Boolean) : [String(pair.en||'').trim()].filter(Boolean);
+    const key = (pair.he||'').trim() + '||' + canonicalEn.join('||').toLowerCase();
+    const words = Array.isArray(users[idx].words) ? users[idx].words.map(normalizeWordEntry) : [];
+    const already = words.some(w=>w.key === key || (w.he === pair.he && JSON.stringify(Array.isArray(w.en)?w.en:[w.en]) === JSON.stringify(canonicalEn)));
+    if(already) return;
+    const entry = { key, he: pair.he, en: canonicalEn, addedAt: Date.now() };
+    words.push(entry);
+    users[idx].words = words;
+    saveUsers(users);
+    authState.user = { ...users[idx] };
+    authState.user.words = words.slice();
+    updateAuthUI();
+    if(profileModal.classList.contains('open')){ renderProfile(); }
+  }
+
+  refreshAuth();
+
+  authOpenBtn.addEventListener('click', ()=>{
+    const existingUsers = loadUsers();
+    const mode = authState.user ? 'signin' : (existingUsers.length ? 'signin' : 'signup');
+    openAuthModal(mode);
+  });
+
+  authSwitch.addEventListener('click', ()=>{
+    const nextMode = authState.mode === 'signin' ? 'signup' : 'signin';
+    setAuthMode(nextMode);
+  });
+
+  authClose.addEventListener('click', hideAuthModal);
+  authModal.addEventListener('click', (e)=>{ if(e.target === authModal) hideAuthModal(); });
+  authForm.addEventListener('submit', (e)=>{ e.preventDefault(); handleAuthSubmit(); });
+  signOutBtn.addEventListener('click', ()=>{ setCurrentUser(null); authState.user = null; updateAuthUI(); closeModal(profileModal); });
+
+  profileBtn.addEventListener('click', ()=>{ renderProfile(); openModal(profileModal); });
+  profileClose.addEventListener('click', ()=>{ closeModal(profileModal); });
+  profileModal.addEventListener('click', (e)=>{ if(e.target === profileModal) closeModal(profileModal); });
 
   // --- Utils ---
   function looksHebrew(s){ return /[\u0590-\u05FF]/.test(s||''); }
@@ -283,12 +602,15 @@
   }
 
   // --- State ---
-  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner' };
+  const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner', seen:new Set(), currentIdx:null, currentPair:null };
 
   function buildQueue(){
     state.queue = state.deck.map((_,i)=>i);
     if(shuffleSel.value==='1') shuffle(state.queue);
     state.i=0; state.score=0; state.streak=0; state.revealed=false;
+    state.seen = new Set();
+    state.currentIdx = null;
+    state.currentPair = null;
     totalEl.textContent = state.queue.length;
     remainingEl.textContent = state.queue.length;
   }
@@ -321,9 +643,16 @@
     }
     const idx = state.queue[state.i];
     const pair = state.deck[idx];
+    state.currentIdx = idx;
+    state.currentPair = pair;
     state.dir = nextDirection();
     const promptText = state.dir==='he2en' ? pair.he : (pair.en[0]||'');
     const answerText = state.dir==='he2en' ? pair.en.join(' / ') : pair.he;
+
+    if(!state.seen.has(idx)){
+      state.seen.add(idx);
+      recordWordForUser(pair);
+    }
 
     hideAllUI();
     state.revealed = false;
@@ -462,6 +791,8 @@
 
   // Keys
   document.addEventListener('keydown', (e)=>{
+    if(authModal.classList.contains('open')){ if(e.key==='Escape'){ hideAuthModal(); } return; }
+    if(profileModal.classList.contains('open')){ if(e.key==='Escape'){ closeModal(profileModal); } return; }
     if(gameScreen.style.display!=='block') return;
     if(e.key==='Escape'){ backBtn.click(); }
     if(state.mode==='flash'){
