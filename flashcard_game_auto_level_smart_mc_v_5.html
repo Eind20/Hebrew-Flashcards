@@ -72,6 +72,14 @@
 
     .top-actions{position:fixed;top:18px;right:24px;display:flex;gap:10px;align-items:center;z-index:1100}
 
+    .loading-cover{position:fixed;inset:0;background:rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;z-index:1400;padding:24px;backdrop-filter:blur(3px)}
+    .loading-cover[hidden]{display:none}
+    .loading-card{background:#fff;border-radius:20px;padding:28px 32px;max-width:420px;width:min(92vw,420px);box-shadow:0 24px 60px rgba(15,23,42,0.25);display:flex;flex-direction:column;gap:18px;align-items:center;text-align:center}
+    .loading-spinner{width:46px;height:46px;border-radius:50%;border:4px solid rgba(37,99,235,0.25);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    .loading-text{font-weight:700;font-size:18px;color:#1f2937;margin:0}
+    .loading-hint{font-size:14px;color:var(--muted);margin:0;line-height:1.4}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
     /* Modal */
     .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.35);display:none;align-items:center;justify-content:center;z-index:1300;padding:20px}
     .modal-backdrop.open{display:flex}
@@ -132,6 +140,13 @@
   </style>
 </head>
 <body>
+  <div class="loading-cover" id="loadingCover" hidden>
+    <div class="loading-card" role="status" aria-live="polite">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p class="loading-text" id="loadingText">Collecting connected words…</p>
+      <p class="loading-hint" id="loadingHint">Checking trusted language APIs for realistic distractors.</p>
+    </div>
+  </div>
   <aside class="auth-sidebar">
     <h2>Player Hub</h2>
     <div>
@@ -333,6 +348,9 @@
   const authGreeting = $('authGreeting');
   const authStatus = $('authStatus');
   const authModal = $('authModal');
+  const loadingCover = $('loadingCover');
+  const loadingText = $('loadingText');
+  const loadingHint = $('loadingHint');
   const authForm = $('authForm');
   const authModalTitle = $('authModalTitle');
   const authModalSubtitle = $('authModalSubtitle');
@@ -364,6 +382,15 @@
   const CURRENT_USER_KEY = 'hf_current_user';
   const authState = { mode:'signin', user:null };
   const profileState = { filterDates:new Set(), selected:new Set(), words:[], wordsByKey:new Map(), dateLabels:new Map() };
+
+  function showLoading(statusText, hintText){
+    if(statusText) loadingText.textContent = statusText;
+    if(hintText) loadingHint.textContent = hintText;
+    loadingCover.hidden = false;
+  }
+  function hideLoading(){
+    loadingCover.hidden = true;
+  }
 
   function resetProfileState(){
     profileState.filterDates.clear();
@@ -1191,8 +1218,182 @@
 
   const STOP_WORDS = new Set(['to','the','a','an','my','your','his','her','their','our']);
 
+  const remoteAssociations = { en:new Map(), he:new Map() };
+  const MAX_REMOTE_TARGETS = 24;
+
+  function englishKeyParts(phrase){
+    const base = (phrase||'').toLowerCase().trim();
+    if(!base) return [];
+    const tokens = base.split(/\s+/).filter(Boolean);
+    const keys = new Set();
+    keys.add(base);
+    if(tokens[0]==='to' && tokens.length>1){
+      const rest = tokens.slice(1).join(' ');
+      keys.add(rest);
+      keys.add(tokens[1]);
+    }
+    tokens.forEach(tok=>{ if(!STOP_WORDS.has(tok)) keys.add(tok); });
+    return Array.from(keys).filter(Boolean);
+  }
+
+  function hebrewKeyParts(word){
+    const base = noNiqqud(word||'').trim();
+    if(!base) return [];
+    const keys = new Set([base]);
+    base.split(/[\s,/]+/).forEach(part=>{ if(part) keys.add(part); });
+    if(/^ל/.test(base) && base.length>2){
+      keys.add(base.replace(/^ל/,''));
+    }
+    return Array.from(keys);
+  }
+
+  async function fetchWithTimeout(url, timeout=4500){
+    if(typeof fetch!=='function'){
+      console.warn('Fetch API is not available in this environment.');
+      return null;
+    }
+    const controller = typeof AbortController!=='undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(()=>controller.abort(), timeout) : null;
+    try{
+      const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
+      if(!res.ok) throw new Error('Network error '+res.status);
+      const data = await res.json();
+      return data;
+    } catch(err){
+      console.warn('Remote lookup failed for', url, err);
+      return null;
+    } finally {
+      if(timer) clearTimeout(timer);
+    }
+  }
+
+  function collectWordsFromSet(set, key, values){
+    const seen = set.get(key) || [];
+    if(!values || !values.length){
+      if(!set.has(key)) set.set(key, []);
+      return seen;
+    }
+    const unique = new Set(seen.map(x=>x.toLowerCase()));
+    values.forEach(val=>{
+      let norm = (val||'').toString().replace(/[_]+/g,' ');
+      norm = normalize(norm);
+      if(!norm) return;
+      const lower = norm.toLowerCase();
+      if(lower===key) return;
+      if(unique.has(lower)) return;
+      unique.add(lower);
+      seen.push(norm);
+    });
+    if(seen.length>24) seen.length = 24;
+    set.set(key, seen);
+    return seen;
+  }
+
+  async function fetchEnglishAssociations(term){
+    const key = term.trim().toLowerCase();
+    if(!key) return [];
+    if(remoteAssociations.en.has(key)) return remoteAssociations.en.get(key);
+    const clean = key.replace(/[^\p{L}\s'-]/gu,' ').replace(/\s+/g,' ').trim();
+    if(!clean){
+      remoteAssociations.en.set(key, []);
+      return [];
+    }
+    const endpoints = [
+      `https://api.datamuse.com/words?ml=${encodeURIComponent(clean)}&max=10`,
+      `https://api.datamuse.com/words?rel_trg=${encodeURIComponent(clean)}&max=8`,
+      `https://api.datamuse.com/words?sl=${encodeURIComponent(clean)}&max=6`
+    ];
+    const payloads = await Promise.all(endpoints.map(url=>fetchWithTimeout(url)));
+    const collected = [];
+    payloads.forEach(payload=>{
+      if(Array.isArray(payload)){
+        payload
+          .slice()
+          .sort((a,b)=> (b && b.score || 0) - (a && a.score || 0))
+          .forEach(entry=>{
+            const word = entry && entry.word ? entry.word : '';
+            if(word) collected.push(word);
+          });
+      }
+    });
+    const stored = collectWordsFromSet(remoteAssociations.en, key, collected);
+    return stored;
+  }
+
+  async function fetchHebrewAssociations(term){
+    const key = noNiqqud(term||'').trim();
+    if(!key) return [];
+    if(remoteAssociations.he.has(key)) return remoteAssociations.he.get(key);
+    const encoded = encodeURIComponent(key);
+    const endpoints = [
+      `https://api.datamuse.com/words?ml=${encoded}&v=he&max=10`,
+      `https://api.datamuse.com/words?rel_trg=${encoded}&v=he&max=8`,
+      `https://api.datamuse.com/words?sl=${encoded}&v=he&max=6`
+    ];
+    const payloads = await Promise.all(endpoints.map(url=>fetchWithTimeout(url)));
+    const collected = [];
+    payloads.forEach(payload=>{
+      if(Array.isArray(payload)){
+        payload
+          .slice()
+          .sort((a,b)=> (b && b.score || 0) - (a && a.score || 0))
+          .forEach(entry=>{
+            const word = entry && entry.word ? entry.word : '';
+            if(word) collected.push(word);
+          });
+      }
+    });
+    const stored = collectWordsFromSet(remoteAssociations.he, key, collected);
+    return stored;
+  }
+
+  async function gatherRemoteAssociations(deck){
+    if(!Array.isArray(deck) || !deck.length) return;
+    const heTargets = new Set();
+    const enTargets = new Set();
+    deck.forEach(pair=>{
+      if(pair.he){
+        hebrewKeyParts(pair.he).forEach(key=>{ if(key && !remoteAssociations.he.has(key)) heTargets.add(key); });
+      }
+      (pair.en||[]).forEach(en=>{
+        englishKeyParts(en).forEach(key=>{
+          if(key && !remoteAssociations.en.has(key)) enTargets.add(key);
+        });
+      });
+    });
+    const heList = Array.from(heTargets).slice(0, MAX_REMOTE_TARGETS);
+    const enList = Array.from(enTargets).slice(0, MAX_REMOTE_TARGETS);
+    const tasks = [];
+    heList.forEach(key=> tasks.push(fetchHebrewAssociations(key)));
+    enList.forEach(key=> tasks.push(fetchEnglishAssociations(key)));
+    if(!tasks.length) return;
+    const totalTargets = heList.length + enList.length;
+    const hint = totalTargets>0
+      ? `Querying ${totalTargets} word families for near-miss distractors…`
+      : 'Reaching out to lexical services for sharper distractors.';
+    showLoading('Collecting connected words…', hint);
+    try{
+      if(typeof Promise.allSettled==='function'){
+        await Promise.allSettled(tasks);
+      } else {
+        await Promise.all(tasks.map(p=>p.catch(()=>null)));
+      }
+    } finally {
+      hideLoading();
+    }
+  }
+
   function englishSemanticAlternatives(phrase){
-    const results = new Set();
+    const ordered = [];
+    const seen = new Set();
+    const add = (value)=>{
+      const norm = normalize(value);
+      if(!norm) return;
+      const lower = norm.toLowerCase();
+      if(seen.has(lower)) return;
+      seen.add(lower);
+      ordered.push(norm);
+    };
     const pieces = (phrase||'').split(/[/,]/).map(part=>part.trim()).filter(Boolean);
     if(!pieces.length) pieces.push(phrase||'');
     pieces.forEach(part=>{
@@ -1208,24 +1409,26 @@
         tokens.forEach(tok=>{ if(!STOP_WORDS.has(tok)) keys.add(tok); });
       }
       keys.forEach(key=>{
+        const remote = remoteAssociations.en.get(key);
+        if(Array.isArray(remote)) remote.forEach(add);
         if(EN_SEMANTIC_BANK[key]){
-          EN_SEMANTIC_BANK[key].forEach(option=>{ if(option) results.add(option); });
+          EN_SEMANTIC_BANK[key].forEach(add);
         }
       });
       if(tokens[0]==='to' && tokens.length>1){
         const base = tokens.slice(1).join(' ');
         if(base){
-          results.add('to practice '+base);
-          results.add('to review '+base);
-          results.add('practice '+base);
+          add('to practice '+base);
+          add('to review '+base);
+          add('practice '+base);
         }
       } else if(tokens.length===1 && tokens[0]){
         const word = tokens[0];
-        results.add('about '+word);
-        results.add(word+' lesson');
+        add('about '+word);
+        add(word+' lesson');
       }
     });
-    return Array.from(results);
+    return ordered;
   }
 
   function hebrewSemanticAlternatives(word){
@@ -1235,6 +1438,10 @@
     const keys = new Set([base, ...parts]);
     const results = new Set();
     keys.forEach(key=>{
+      const remote = remoteAssociations.he.get(key);
+      if(Array.isArray(remote)){
+        remote.forEach(option=>{ if(option) results.add(option); });
+      }
       if(HE_SEMANTIC_BANK[key]){
         HE_SEMANTIC_BANK[key].forEach(option=>{ if(option) results.add(option); });
       }
@@ -1262,17 +1469,18 @@
   }
   function nextDirection(){ return dirSel.value==='mixed' ? (Math.random()>0.5?'he2en':'en2he') : dirSel.value; }
 
-  function beginGame(deck){
+  async function beginGame(deck){
     const normalizedDeck = normalizeDeck(deck);
     if(!normalizedDeck.length){
       alert('Please include at least one valid word pair.');
       return;
     }
-    state.mode = modeSel.value;
     const desiredLevel = levelSel.value==='auto' ? detectLevel(normalizedDeck) : levelSel.value;
     state.level = desiredLevel;
     levelNote.textContent = 'Level: ' + desiredLevel;
     liveLevel.textContent = 'Level: ' + desiredLevel;
+    await gatherRemoteAssociations(normalizedDeck);
+    state.mode = modeSel.value;
     state.deck = normalizedDeck;
     buildQueue();
     mainScreen.style.display='none';
@@ -1480,10 +1688,19 @@
   }
 
   // --- Events ---
-  startBtn.addEventListener('click', ()=>{
+  const startBtnDefaultText = startBtn.textContent;
+
+  startBtn.addEventListener('click', async ()=>{
     const deck = parseRaw(rawEl.value);
     if(deck.length===0){ alert('Please paste lines like: מילה - word'); return; }
-    beginGame(deck);
+    startBtn.disabled = true;
+    startBtn.textContent = 'Preparing smart options…';
+    try {
+      await beginGame(deck);
+    } finally {
+      startBtn.disabled = false;
+      startBtn.textContent = startBtnDefaultText;
+    }
   });
 
   backBtn.addEventListener('click', ()=>{
