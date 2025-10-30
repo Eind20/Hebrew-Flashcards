@@ -122,6 +122,9 @@
     .profile-table tbody tr:last-child td{border-bottom:none}
     .profile-table td:first-child,.profile-table th:first-child{text-align:center}
     .profile-footer{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+    .profile-table .guess-count{font-weight:700}
+    .profile-table .guess-correct{color:var(--ok)}
+    .profile-table .guess-incorrect{color:var(--danger)}
     .profile-selected-count{font-size:13px;color:var(--muted)}
 
     .profile-modal{width:min(95vw,1100px);max-height:min(92vh,820px);display:flex;flex-direction:column;overflow:hidden}
@@ -211,6 +214,7 @@
                   <th scope="col" style="width:40px"></th>
                   <th scope="col">Word in Hebrew</th>
                   <th scope="col">Word in English</th>
+                  <th scope="col">Guesses</th>
                   <th scope="col">Date added</th>
                 </tr>
               </thead>
@@ -504,11 +508,16 @@
   }
 
   function normalizeWordEntry(entry){
+    const parseCount = (value)=>{
+      const num = Number(value);
+      if(!Number.isFinite(num) || num < 0) return 0;
+      return Math.floor(num);
+    };
     if(!entry || typeof entry !== 'object'){
       const value = entry!=null ? String(entry) : '';
       const enList = value ? [value] : [];
       const key = canonicalKey(value, enList) || Math.random().toString(36).slice(2);
-      return { key, he:value, en:enList, addedAt:Date.now() };
+      return { key, he:value, en:enList, addedAt:Date.now(), guessedCorrect:0, guessedIncorrect:0 };
     }
     const he = typeof entry.he==='string' ? entry.he.trim() : '';
     const enList = sanitizeEnList(entry.en);
@@ -517,7 +526,9 @@
       key: keyBase || Math.random().toString(36).slice(2),
       he,
       en: enList,
-      addedAt: entry.addedAt || Date.now()
+      addedAt: entry.addedAt || Date.now(),
+      guessedCorrect: parseCount(entry.guessedCorrect),
+      guessedIncorrect: parseCount(entry.guessedIncorrect)
     };
   }
 
@@ -777,7 +788,7 @@
     if(!filtered.length){
       const row = document.createElement('tr');
       const cell = document.createElement('td');
-      cell.colSpan = 4;
+      cell.colSpan = 5;
       cell.textContent = profileState.words.length ? 'No words for the selected date(s).' : 'No words saved yet.';
       cell.style.textAlign = 'center';
       row.appendChild(cell);
@@ -810,6 +821,20 @@
       const enList = Array.isArray(word.en) ? word.en : [word.en];
       enCell.textContent = enList.filter(Boolean).join(' / ');
       row.appendChild(enCell);
+
+      const guessesCell = document.createElement('td');
+      const correctSpan = document.createElement('span');
+      correctSpan.className = 'guess-count guess-correct';
+      correctSpan.textContent = String(word.guessedCorrect || 0);
+      const slashSpan = document.createElement('span');
+      slashSpan.textContent = ' / ';
+      const incorrectSpan = document.createElement('span');
+      incorrectSpan.className = 'guess-count guess-incorrect';
+      incorrectSpan.textContent = String(word.guessedIncorrect || 0);
+      guessesCell.appendChild(correctSpan);
+      guessesCell.appendChild(slashSpan);
+      guessesCell.appendChild(incorrectSpan);
+      row.appendChild(guessesCell);
 
       const dateCell = document.createElement('td');
       dateCell.textContent = formatDateLabel(word.addedAt);
@@ -864,8 +889,55 @@
     const key = canonicalKey(normalizedPair.he, normalizedPair.en);
     const words = Array.isArray(users[idx].words) ? users[idx].words.map(normalizeWordEntry) : [];
     const map = new Map(words.map(word=>[word.key, word]));
-    if(map.has(key)) return;
-    const entry = { key, he: normalizedPair.he, en: normalizedPair.en, addedAt: Date.now() };
+    if(map.has(key)){
+      const existing = map.get(key);
+      existing.he = normalizedPair.he;
+      existing.en = normalizedPair.en;
+      if(typeof existing.guessedCorrect !== 'number'){ existing.guessedCorrect = 0; }
+      if(typeof existing.guessedIncorrect !== 'number'){ existing.guessedIncorrect = 0; }
+      map.set(key, existing);
+    } else {
+      const entry = {
+        key,
+        he: normalizedPair.he,
+        en: normalizedPair.en,
+        addedAt: Date.now(),
+        guessedCorrect: 0,
+        guessedIncorrect: 0
+      };
+      map.set(key, entry);
+    }
+    const updatedWords = Array.from(map.values());
+    users[idx].words = updatedWords;
+    saveUsers(users);
+    authState.user = { ...users[idx], words: updatedWords.slice() };
+    updateAuthUI();
+    if(profileModal.classList.contains('open')){ renderProfile(); }
+  }
+
+  function updateWordGuessStats(pair, wasCorrect){
+    if(!authState.user) return;
+    const users = loadUsers();
+    const idx = users.findIndex(u=>u.username === authState.user.username);
+    if(idx === -1) return;
+    const normalizedPair = normalizePairForDeck(pair);
+    if(!normalizedPair.he || !normalizedPair.en.length) return;
+    const key = canonicalKey(normalizedPair.he, normalizedPair.en);
+    const words = Array.isArray(users[idx].words) ? users[idx].words.map(normalizeWordEntry) : [];
+    const map = new Map(words.map(word=>[word.key, word]));
+    let entry = map.get(key);
+    if(!entry){
+      entry = {
+        key,
+        he: normalizedPair.he,
+        en: normalizedPair.en,
+        addedAt: Date.now(),
+        guessedCorrect: 0,
+        guessedIncorrect: 0
+      };
+    }
+    if(wasCorrect){ entry.guessedCorrect = (entry.guessedCorrect || 0) + 1; }
+    else { entry.guessedIncorrect = (entry.guessedIncorrect || 0) + 1; }
     map.set(key, entry);
     const updatedWords = Array.from(map.values());
     users[idx].words = updatedWords;
@@ -1581,6 +1653,7 @@
   }
 
   function mark(correct){
+    if(state.currentPair){ updateWordGuessStats(state.currentPair, correct); }
     if(correct){ state.score++; state.streak++; }
     else { state.streak=0; const idx = state.queue[state.i]; const againAt = Math.min(state.queue.length, state.i + 3 + Math.floor(Math.random()*3)); state.queue.splice(againAt,0,idx); }
     scoreEl.textContent = state.score; streakEl.textContent = state.streak;
