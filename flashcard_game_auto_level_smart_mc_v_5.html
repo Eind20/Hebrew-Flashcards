@@ -108,6 +108,15 @@
     .profile-footer{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
     .profile-selected-count{font-size:13px;color:var(--muted)}
 
+    .profile-modal{width:min(95vw,1100px);max-height:min(92vh,820px);display:flex;flex-direction:column;overflow:hidden}
+    .profile-modal .profile-words{flex:1;display:flex;flex-direction:column;gap:16px;min-height:0;overflow:hidden}
+    .profile-modal .profile-shell{flex:1;gap:16px;overflow:hidden}
+    .profile-modal .profile-shell > *{min-height:0}
+    .profile-modal .profile-toolbar{align-items:center}
+    .profile-modal .profile-table-wrap{flex:1;max-height:none;min-height:260px}
+    .profile-modal .profile-footer{padding-top:4px}
+    .profile-modal .profile-empty{min-height:200px;display:flex;align-items:center;justify-content:center}
+
     @media(max-width:900px){
       body{padding-left:0}
       .auth-sidebar{position:static;width:auto;flex-direction:row;align-items:center;justify-content:space-between;padding:18px 20px;border-right:none;border-bottom:1px solid var(--border);box-shadow:none;background:linear-gradient(180deg,#f1f5f9,#e2e8f0)}
@@ -154,7 +163,7 @@
   </div>
 
   <div class="modal-backdrop" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
-    <div class="modal-card" style="max-width:720px">
+    <div class="modal-card profile-modal">
       <button class="modal-close" id="profileClose" aria-label="Close">×</button>
       <h2 id="profileTitle">My Profile</h2>
       <p class="auth-meta">Signed in as <strong id="profileUsername">—</strong></p>
@@ -983,6 +992,189 @@
     return Array.from(vars).filter(x=>x.toLowerCase()!==p.toLowerCase());
   }
 
+  const EN_SEMANTIC_BANK = {
+    'study':['to learn','homework','lesson','study time'],
+    'to study':['to learn','practice studying','prepare homework','review the lesson'],
+    'learn':['to study','to understand','lesson','learning time'],
+    'to learn':['to study','to practice','to understand better','learning session'],
+    'read':['to skim','story time','reading practice','to look at words'],
+    'to read':['reading practice','to go through a story','to study a book','reading homework'],
+    'write':['essay','journal','to jot down','writing practice'],
+    'to write':['writing practice','to take notes','essay work','to jot sentences'],
+    'eat':['meal','snack','breakfast','to taste food'],
+    'to eat':['have a meal','to taste food','lunchtime','snack break'],
+    'drink':['beverage','glass of water','juice','to sip'],
+    'to drink':['to sip','water break','cup of tea','beverage time'],
+    'work':['job','office task','assignment','employment'],
+    'to work':['job time','to do a task','office work','shift'],
+    'play':['game','sport','recess','fun time'],
+    'to play':['recess','game time','to have fun','practice game'],
+    'run':['sprint','race','track practice','jog'],
+    'to run':['to sprint','race practice','jogging','track workout'],
+    'walk':['stroll','hike','slow walk','morning walk'],
+    'to walk':['slow walk','evening stroll','go on foot','morning walk'],
+    'house':['home','apartment','family house','living room'],
+    'home':['house','apartment','family home','cozy room'],
+    'family':['parents','relatives','siblings','home life'],
+    'mother':['mom','parent','mother figure','mommy'],
+    'father':['dad','parent','father figure','daddy'],
+    'brother':['sibling','family member','older brother','younger brother'],
+    'sister':['sibling','family member','older sister','younger sister'],
+    'friend':['buddy','pal','classmate','best friend'],
+    'teacher':['instructor','mentor','school guide','class teacher'],
+    'student':['pupil','learner','classmate','kid in class'],
+    'book':['story','novel','textbook','library book'],
+    'school':['classroom','lesson','teacher','school building'],
+    'city':['town','village','capital city','busy streets'],
+    'market':['store','shop','grocery','bazaar'],
+    'food':['meal','dish','snack','dinner'],
+    'water':['drink','river water','glass of water','bottle of water'],
+    'music':['song','melody','concert','tune'],
+    'song':['melody','music','lyrics','tune'],
+    'game':['sport','contest','board game','match'],
+    'light':['lamp','sunlight','bright light','flashlight'],
+    'dark':['night','shadow','dim light','no light'],
+    'day':['morning','afternoon','sunny day','weekday'],
+    'night':['evening','midnight','bedtime','dark night'],
+    'happy':['glad','joyful','smiling','excited'],
+    'sad':['unhappy','upset','blue mood','tearful'],
+    'big':['large','huge','giant','massive'],
+    'small':['tiny','little','mini','compact'],
+    'fast':['quick','rapid','speedy','swift'],
+    'slow':['sluggish','not fast','gradual','steady'],
+    'hot':['warm','scorching','heat wave','very warm'],
+    'cold':['chilly','freezing','ice cold','cool weather'],
+    'cat':['kitten','pet cat','little cat','house pet'],
+    'dog':['puppy','pet dog','guard dog','friendly dog'],
+    'money':['cash','coins','allowance','salary'],
+    'shop':['store','market','boutique','shopping trip'],
+    'travel':['journey','trip','vacation','tour'],
+    'to travel':['journey','take a trip','go on vacation','tour'],
+    'speak':['talk','conversation','chat','discussion'],
+    'to speak':['to talk','conversation','class discussion','oral practice'],
+    'listen':['hear','audio practice','pay attention','listening time'],
+    'to listen':['hear carefully','audio practice','pay attention','listening exercise']
+  };
+
+  const EN_FALLBACK = [
+    'extra practice','similar idea','close meaning','related word','class activity','homework time','after-school lesson',
+    'study partner','long conversation','friendly visit','family trip','daily routine','weekend plan'
+  ];
+
+  const HE_SEMANTIC_BANK = {
+    'שלום':['היי','מה נשמע','ברכה','שלום לך'],
+    'להתראות':['נתראה','שלום שלום','ביי','להיפגש שוב'],
+    'ללמוד':['לשנן','לקרוא','שיעור','למידה'],
+    'לקרוא':['קריאה','ספר','עיון','סיפור'],
+    'לכתוב':['כתיבה','רשימה','עט','משימה'],
+    'לחשוב':['מחשבה','להרהר','רעיון','ראש'],
+    'לדבר':['שיחה','לשוחח','לומר','דיבור'],
+    'לאכול':['ארוחה','מאכל','מנה','סעודה'],
+    'לשתות':['שתייה','כוס מים','משקה','בקבוק'],
+    'לעבוד':['עבודה','תפקיד','משרד','פרנסה'],
+    'לשחק':['משחק','כדורגל','תחרות','זמן משחק'],
+    'לרוץ':['ריצה','מסלול','ספרינט','מרוץ'],
+    'ללכת':['הליכה','צעד','טיול','לצעוד'],
+    'בית':['דירה','חדר','בית גדול','משפחה'],
+    'ספר':['חוברת','סיפור','טקסט','ספר לימוד'],
+    'כיתה':['כיתה לימודית','שיעור','חדר','בית ספר'],
+    'בית ספר':['כיתה','מורה','שיעור','למידה'],
+    'משפחה':['הורים','אחים','בית','משפחתיות'],
+    'אמא':['אמא שלי','אם','הורה','אימהות'],
+    'אבא':['אבא שלי','אב','הורה','אבהות'],
+    'אח':['אחים','משפחה','בן','בן משפחה'],
+    'אחות':['אחיות','משפחה','בת','בת משפחה'],
+    'חבר':['ידיד','בן כיתה','חברות','חבר טוב'],
+    'תלמיד':['חניך','לומד','סטודנט','תלמידה'],
+    'מורה':['מחנך','מדריך','מורת דרך','מורה בבית ספר'],
+    'עיר':['עיירה','רחובות','מרכז','מטרופולין'],
+    'כפר':['מושב','עיירה קטנה','קהילה','שדות'],
+    'אוכל':['מאכל','מנות','ארוחה','מטבח'],
+    'מים':['שתייה','מים קרים','בקבוק','כוס'],
+    'שיר':['מנגינה','מוזיקה','קצב','שירה'],
+    'משחק':['תחרות','ספורט','לשחק','משחק ילדים'],
+    'יום':['בוקר','צהריים','יום לימודים','יום שמשי'],
+    'לילה':['ערב','חצות','שעת שינה','לילה חשוך'],
+    'גדול':['ענק','רחב','גדול מאוד','גבוה'],
+    'קטן':['זעיר','קטנטן','מיניאטורי','קטן מאוד'],
+    'חם':['לוהט','חמים','שרב','חום'],
+    'קר':['קריר','קפוא','שלג','קר מאוד'],
+    'מהר':['זריז','במהירות','מהר מהר','ריצה'],
+    'לאט':['באיטיות','איטי','צעד איטי','להאט'],
+    'ילד':['נער','בן','תלמיד','ילדות'],
+    'ילדה':['נערה','בת','תלמידה','ילדות'],
+    'עבודה':['משרד','תפקיד','עובד','עבודה קשה'],
+    'כסף':['מטבעות','שטרות','תשלום','חיסכון'],
+    'נסיעה':['טיול','לנסוע','אוטובוס','דרך'],
+    'לנסוע':['נסיעה','טיול','אוטובוס','רכבת'],
+    'לאהוב':['אהבה','חיבה','לב','לייק'],
+    'לשבת':['ישיבה','כיסא','לשבת בשקט','מנוחה'],
+    'לפתוח':['פתיחה','דלת','מפתח','להתחיל'],
+    'לסגור':['סגירה','דלת','נעילה','להפסיק']
+  };
+
+  const HE_FALLBACK = [
+    'מילה דומה','רעיון קרוב','עוד תשובה אפשרית','חזרה על החומר','שיעור בכיתה','תרגול נוסף','בחירת מורה','תשובת תלמיד'
+  ];
+
+  const STOP_WORDS = new Set(['to','the','a','an','my','your','his','her','their','our']);
+
+  function englishSemanticAlternatives(phrase){
+    const results = new Set();
+    const pieces = (phrase||'').split(/[/,]/).map(part=>part.trim()).filter(Boolean);
+    if(!pieces.length) pieces.push(phrase||'');
+    pieces.forEach(part=>{
+      const lower = part.toLowerCase();
+      const tokens = lower.split(/\s+/).filter(Boolean);
+      const keys = new Set();
+      if(tokens.length){
+        keys.add(lower);
+        if(tokens[0]==='to' && tokens.length>1){
+          keys.add('to '+tokens[1]);
+          keys.add(tokens[1]);
+        }
+        tokens.forEach(tok=>{ if(!STOP_WORDS.has(tok)) keys.add(tok); });
+      }
+      keys.forEach(key=>{
+        if(EN_SEMANTIC_BANK[key]){
+          EN_SEMANTIC_BANK[key].forEach(option=>{ if(option) results.add(option); });
+        }
+      });
+      if(tokens[0]==='to' && tokens.length>1){
+        const base = tokens.slice(1).join(' ');
+        if(base){
+          results.add('to practice '+base);
+          results.add('to review '+base);
+          results.add('practice '+base);
+        }
+      } else if(tokens.length===1 && tokens[0]){
+        const word = tokens[0];
+        results.add('about '+word);
+        results.add(word+' lesson');
+      }
+    });
+    return Array.from(results);
+  }
+
+  function hebrewSemanticAlternatives(word){
+    const base = noNiqqud(word||'').trim();
+    if(!base) return [];
+    const parts = base.split(/[\s,/]+/).filter(Boolean);
+    const keys = new Set([base, ...parts]);
+    const results = new Set();
+    keys.forEach(key=>{
+      if(HE_SEMANTIC_BANK[key]){
+        HE_SEMANTIC_BANK[key].forEach(option=>{ if(option) results.add(option); });
+      }
+    });
+    if(/^ל/.test(base) && base.length>2){
+      const stem = base.replace(/^ל/, '');
+      results.add('עוד '+stem);
+      results.add('תרגול '+stem);
+    }
+    return Array.from(results);
+  }
+
   // --- State ---
   const state = { deck:[], queue:[], i:0, score:0, streak:0, dir:'he2en', mode:'type', revealed:false, mc:{choices:[], correctIndex:-1}, level:'beginner', seen:new Set(), currentIdx:null, currentPair:null };
 
@@ -1090,44 +1282,116 @@
   function buildMC(answerText, currentIdx){
     mcBar.style.display='flex';
     const promptIsHeb = state.dir==='he2en';
+    const pair = state.deck[currentIdx] || {};
+    const primary = promptIsHeb
+      ? (Array.isArray(pair.en) && pair.en.length ? pair.en[0] : pair.en)
+      : pair.he;
     const correct = answerText;
+    const comparisonTarget = normalize(primary) || correct;
 
     const pool = [];
     for(let i=0;i<state.deck.length;i++){
       if(i===currentIdx) continue;
       const p = state.deck[i];
-      const candidate = promptIsHeb ? (Array.isArray(p.en)?p.en[0]:p.en) : p.he;
-      pool.push(candidate);
+      if(promptIsHeb){
+        const options = Array.isArray(p.en) ? p.en : [p.en];
+        options.forEach(opt=>{ if(opt) pool.push(opt); });
+      } else if(p.he){
+        pool.push(p.he);
+      }
     }
 
-    const gens = promptIsHeb ? englishVariants(correct) : hebrewVariants(correct);
+    const semantic = promptIsHeb ? englishSemanticAlternatives(comparisonTarget) : hebrewSemanticAlternatives(comparisonTarget);
+    const gens = promptIsHeb ? englishVariants(comparisonTarget) : hebrewVariants(comparisonTarget);
 
     const distractors = [];
-    const used = new Set([normalize(correct).toLowerCase()]);
-    function tryAdd(x){ const n=normalize(x).toLowerCase(); if(!n||used.has(n)) return false; distractors.push(x); used.add(n); return true; }
+    const used = new Set();
+    const correctKey = normalize(correct).toLowerCase();
+    used.add(correctKey);
+    const primaryKey = normalize(comparisonTarget).toLowerCase();
+    if(primaryKey && primaryKey!==correctKey) used.add(primaryKey);
 
+    function tryAdd(x){
+      const n = normalize(x).toLowerCase();
+      if(!n || used.has(n)) return false;
+      distractors.push(x);
+      used.add(n);
+      return true;
+    }
+
+    const ranked = pool.map(x=>({ x, s: similarity(x, comparisonTarget) }));
+    const closeFirst = ranked.slice().sort((a,b)=>b.s-a.s).map(r=>r.x);
+    const midFirst = ranked.slice().sort((a,b)=>Math.abs(0.45-b.s)-Math.abs(0.45-a.s)).map(r=>r.x);
+
+    const candidateLists = [];
+    if(semantic.length) candidateLists.push(semantic);
+    if(gens.length) candidateLists.push(gens);
     if(state.level==='beginner'){
-      shuffle(pool); for(const x of pool){ if(tryAdd(x) && distractors.length>=3) break; }
+      candidateLists.push(shuffle(pool.slice()));
     } else if(state.level==='intermediate'){
-      const ranked = pool.map(x=>({x, s: similarity(x, correct)})).sort((a,b)=>Math.abs(0.45-b.s)-Math.abs(0.45-a.s));
-      for(const r of ranked){ if(tryAdd(r.x) && distractors.length>=2) break; }
-      shuffle(gens); for(const g of gens){ if(tryAdd(g) && distractors.length>=3) break; }
-      shuffle(pool); for(const x of pool){ if(distractors.length>=3) break; tryAdd(x); }
+      if(midFirst.length) candidateLists.push(midFirst);
+      candidateLists.push(shuffle(pool.slice()));
     } else {
-      const close = pool.map(x=>({x, s: similarity(x, correct)})).sort((a,b)=>b.s-a.s);
-      for(const r of close){ if(r.s<0.35) break; if(tryAdd(r.x) && distractors.length>=2) break; }
-      for(const g of gens){ if(tryAdd(g) && distractors.length>=3) break; }
-      for(const r of close){ if(distractors.length>=3) break; tryAdd(r.x); }
+      if(closeFirst.length) candidateLists.push(closeFirst);
+      if(midFirst.length) candidateLists.push(midFirst);
+    }
+
+    candidateLists.forEach(list=>{
+      for(const item of list){
+        if(tryAdd(item) && distractors.length>=3) break;
+      }
+    });
+
+    if(distractors.length<3){
+      const fallback = promptIsHeb ? EN_FALLBACK.slice() : HE_FALLBACK.slice();
+      shuffle(fallback);
+      for(const option of fallback){
+        if(tryAdd(option) && distractors.length>=3) break;
+      }
+    }
+
+    if(distractors.length<3 && pool.length){
+      const extras = shuffle(pool.slice());
+      for(const option of extras){
+        if(tryAdd(option) && distractors.length>=3) break;
+      }
+    }
+
+    let fillerCount = 1;
+    while(distractors.length<3){
+      const label = promptIsHeb ? `תשובה קרובה ${fillerCount}` : `related choice ${fillerCount}`;
+      fillerCount++;
+      if(tryAdd(label)) continue;
+      distractors.push(label);
     }
 
     const choices = [correct, ...distractors.slice(0,3)];
-    while(choices.length<4){ const filler = pool[Math.floor(Math.random()*Math.max(1,pool.length))] || correct + ' '; if(!used.has(normalize(filler).toLowerCase())){ choices.push(filler); used.add(normalize(filler).toLowerCase()); } if(choices.length>=4) break; }
+    if(choices.length<4){
+      const more = distractors.slice(3).concat(closeFirst, midFirst, semantic, gens, pool, promptIsHeb?EN_FALLBACK:HE_FALLBACK);
+      for(const option of more){
+        if(choices.length>=4) break;
+        const key = normalize(option).toLowerCase();
+        if(!key || key===correctKey) continue;
+        if(choices.some(choice=>normalize(choice).toLowerCase()===key)) continue;
+        choices.push(option);
+      }
+    }
+    while(choices.length<4){
+      const pad = promptIsHeb ? `אפשרות בונוס ${choices.length}` : `bonus option ${choices.length}`;
+      choices.push(pad);
+    }
+
     shuffle(choices);
     state.mc.choices = choices;
     state.mc.correctIndex = choices.indexOf(correct);
 
     const labels=['A','B','C','D'];
-    [optA,optB,optC,optD].forEach((btn,i)=>{ btn.textContent = labels[i] + ': ' + choices[i]; btn.setAttribute('data-index', i); btn.classList.remove('correct','wrong'); btn.disabled=false; });
+    [optA,optB,optC,optD].forEach((btn,i)=>{
+      btn.textContent = labels[i] + ': ' + choices[i];
+      btn.setAttribute('data-index', i);
+      btn.classList.remove('correct','wrong');
+      btn.disabled=false;
+    });
   }
 
   // --- feedback utils ---
